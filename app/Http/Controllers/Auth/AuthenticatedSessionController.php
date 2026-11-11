@@ -76,57 +76,52 @@ class AuthenticatedSessionController extends Controller
             $request->authenticate();
         }
 
-        // 4. Password is VALID — check OTP policy before full authentication
-        if (config('otp.policy') === 'every_login') {
-            // ── OTP required for every login ──────────────────────────────
-
-            // Check send rate limit (max 5 OTPs in 15 minutes)
-            if ($this->otpService->isRateLimited($user)) {
-                return back()->withErrors([
-                    'email' => 'Too many verification code requests. Please wait before trying again.',
-                ])->onlyInput('email');
-            }
-
-            // Generate OTP and send email
-            $plainOtp   = $this->otpService->generate($user);
-            $expMinutes = config('otp.expires_minutes', 3);
-
-            try {
-                Mail::to($user->email)->send(new OtpNotificationMail($plainOtp, $expMinutes));
-            } catch (\Throwable $e) {
-                logger()->error('OTP email delivery failed for account [' . $user->email . ']: ' . $e->getMessage());
-                return back()->withErrors([
-                    'email' => 'Failed to send verification code. Please try again.',
-                ])->onlyInput('email');
-            }
-
-            // Store temporary pending state (NOT a full login)
-            // The session holds only the user ID — no credentials, no tokens
-            $request->session()->put('otp_pending_user_id', $user->id);
-
-            // Handle Remember-email cookie at this stage so it is set regardless of OTP outcome
-            if ($request->boolean('remember')) {
-                cookie()->queue('remember_hims_email', $user->email, 43200);
-            } else {
-                cookie()->queue(cookie()->forget('remember_hims_email'));
-            }
-
-            // Audit: OTP generated
-            ActivityLog::create([
-                'user_id'     => $user->id,
-                'action'      => 'OTP Generated',
-                'module'      => 'Authentication',
-                'severity'    => ActivityLog::SEVERITY_INFO,
-                'result'      => ActivityLog::RESULT_SUCCESS,
-                'description' => "Login verification code generated and sent to account [{$user->email}].",
-                'ip_address'  => $request->ip(),
-                'logged_at'   => now(),
-            ]);
-
-            return redirect()->route('otp.verify');
+        // 4. Password is VALID — require OTP verification
+        // Check send rate limit (max 5 OTPs in 15 minutes)
+        if ($this->otpService->isRateLimited($user)) {
+            return back()->withErrors([
+                'email' => 'Too many verification code requests. Please wait before trying again.',
+            ])->onlyInput('email');
         }
 
-        
+        // Generate OTP and send email
+        $plainOtp   = $this->otpService->generate($user);
+        $expMinutes = config('otp.expires_minutes', 3);
+
+        try {
+            Mail::to($user->email)->send(new OtpNotificationMail($plainOtp, $expMinutes));
+        } catch (\Throwable $e) {
+            logger()->error('OTP email delivery failed for account [' . $user->email . ']: ' . $e->getMessage());
+            return back()->withErrors([
+                'email' => 'Failed to send verification code. Please try again.',
+            ])->onlyInput('email');
+        }
+
+        // Store temporary pending state (NOT a full login)
+        // The session holds only the user ID — no credentials, no tokens
+        $request->session()->put('otp_pending_user_id', $user->id);
+
+        // Handle Remember-email cookie at this stage so it is set regardless of OTP outcome
+        if ($request->boolean('remember')) {
+            cookie()->queue('remember_hims_email', $user->email, 43200);
+        } else {
+            cookie()->queue(cookie()->forget('remember_hims_email'));
+        }
+
+        // Audit: OTP generated
+        ActivityLog::create([
+            'user_id'     => $user->id,
+            'action'      => 'OTP Generated',
+            'module'      => 'Authentication',
+            'severity'    => ActivityLog::SEVERITY_INFO,
+            'result'      => ActivityLog::RESULT_SUCCESS,
+            'description' => "Login verification code generated and sent to account [{$user->email}].",
+            'ip_address'  => $request->ip(),
+            'logged_at'   => now(),
+        ]);
+
+        return redirect()->route('otp.verify');
+    }
 
     /**
      * Destroy an authenticated session.
