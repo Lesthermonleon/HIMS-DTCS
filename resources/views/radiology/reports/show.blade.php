@@ -64,25 +64,26 @@
         <div class="card">
             <div class="card-header bg-light"><i class="bi bi-gear me-2"></i>Actions</div>
             <div class="card-body d-flex flex-column gap-2">
-                @if($radiologyReport->status === 'Draft' && auth()->user()->hasAnyRole(['admin', 'radiologist']))
+                @if($radiologyReport->status === 'Draft' && auth()->user()->hasRole('radiologist'))
                     <form method="POST" action="{{ route('radiology.reports.approve', $radiologyReport) }}">
                         @csrf @method('PATCH')
                         <button type="submit" class="btn btn-success w-100"><i class="bi bi-check2-square me-2"></i>Approve Report</button>
                     </form>
+                    <button type="button" class="btn btn-outline-warning w-100" data-bs-toggle="modal" data-bs-target="#returnReportModal"><i class="bi bi-arrow-return-left me-2"></i>Return for Correction</button>
                 @endif
 
-                @if($radiologyReport->status === 'Approved' && auth()->user()->hasAnyRole(['admin', 'radiologist']))
+                @if($radiologyReport->status === 'Approved' && auth()->user()->hasRole('radiologist'))
                     <form method="POST" action="{{ route('radiology.reports.release', $radiologyReport) }}">
                         @csrf @method('PATCH')
                         <button type="submit" class="btn btn-primary w-100"><i class="bi bi-send-check me-2"></i>Release Report</button>
                     </form>
                 @endif
 
-                @if($radiologyReport->status !== 'Released' && auth()->user()->hasAnyRole(['admin', 'radiologist']))
-                    <a href="{{ route('radiology.reports.edit', $radiologyReport) }}" class="btn btn-success w-100"><i class="bi bi-pencil me-2"></i>Edit Report Findings</a>
+                @if($radiologyReport->status === 'Draft' && (auth()->user()->hasRole('radiologist') || (auth()->user()->hasRole('rad-tech') && auth()->user()->hasPermission('ris.reports.prepare'))))
+                    <a href="{{ route('radiology.reports.edit', $radiologyReport) }}" class="btn btn-outline-primary w-100"><i class="bi bi-pencil me-2"></i>Edit Report Findings</a>
                 @endif
 
-                @if($radiologyReport->status === 'Draft' && auth()->user()->hasAnyRole(['admin', 'radiologist']))
+                @if($radiologyReport->status === 'Draft' && auth()->user()->hasRole('radiologist'))
                     <form method="POST" action="{{ route('radiology.reports.destroy', $radiologyReport) }}" onsubmit="return confirm('Are you sure you want to delete this draft report?');">
                         @csrf @method('DELETE')
                         <button type="submit" class="btn btn-outline-danger w-100"><i class="bi bi-trash me-2"></i>Delete Report</button>
@@ -106,15 +107,13 @@
                         @foreach($radiologyReport->radiologyRequest->images as $img)
                             <li>
                                 <i class="bi bi-file-earmark-image text-primary me-1"></i>
-                                <a href="{{ asset('storage/' . $img->file_path) }}" target="_blank" class="fw-semibold text-break">{{ $img->file_name }}</a>
+                                <a href="{{ route('radiology.images.view', $img) }}" target="_blank" class="fw-semibold text-break">{{ $img->file_name }}</a>
                                 <span class="text-muted">({{ strtoupper($img->file_type) }})</span>
                             </li>
                         @endforeach
                     </ul>
                 </div>
             </div>
-        @endif
-
         {{-- Findings card --}}
         <div class="card mb-3 border-start border-primary border-4">
             <div class="card-body">
@@ -126,7 +125,7 @@
         </div>
 
         {{-- Impression card --}}
-        <div class="card mb-3 border-start border-success border-4">
+        <div class="card mb-3">
             <div class="card-body">
                 <h5 class="card-title fw-bold text-dark mb-3"><i class="bi bi-check-circle text-success me-2"></i>Clinical Impression</h5>
                 <div class="p-3 bg-light rounded text-dark fs-6 text-break fw-semibold" style="white-space: pre-line; line-height: 1.6;">
@@ -148,4 +147,29 @@
         @endif
     </div>
 </div>
+
+@if($radiologyReport->status === 'Draft' && auth()->user()->hasRole('radiologist'))
+<div class="modal fade" id="returnReportModal" tabindex="-1" aria-labelledby="returnReportModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="POST" action="{{ route('radiology.reports.return', $radiologyReport) }}" class="modal-content">
+            @csrf @method('PATCH')
+            <div class="modal-header">
+                <h5 class="modal-title" id="returnReportModalLabel"><i class="bi bi-arrow-return-left text-warning me-2"></i>Return Report for Correction</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-3">Provide clinical notes and specific correction instructions for the radiology technologist / preparer.</p>
+                <div class="mb-3">
+                    <label for="correction_notes" class="form-label fw-semibold">Correction Notes <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="correction_notes" name="correction_notes" rows="3" required placeholder="Specify what needs to be revised or corrected..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-warning"><i class="bi bi-arrow-return-left me-1"></i>Return for Correction</button>
+            </div>
+        </form>
+    </div>
+</div>
+@endif
 @endsection

@@ -29,5 +29,19 @@ class PrescriptionItem extends Model
     {
         return $this->hasMany(DispensingRecord::class);
     }
+
+    public function getDispensedQuantityAttribute(): int
+    {
+        if ($this->relationLoaded('dispensingRecords')) {
+            return (int) $this->dispensingRecords->sum('quantity_dispensed');
+        }
+
+        return (int) $this->dispensingRecords()->sum('quantity_dispensed');
+    }
+
+    public function getRemainingQuantityAttribute(): int
+    {
+        return max(0, (int) $this->quantity - $this->dispensed_quantity);
+    }
 }
 

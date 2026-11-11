@@ -126,11 +126,7 @@ class AuthenticatedSessionController extends Controller
             return redirect()->route('otp.verify');
         }
 
-        // ── Future: non-OTP policy paths would go here ────────────────────
-        // (No trusted-device or skip-OTP policy is implemented at this stage)
-
-        return redirect()->route('dashboard');
-    }
+        
 
     /**
      * Destroy an authenticated session.

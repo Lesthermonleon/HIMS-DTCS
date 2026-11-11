@@ -23,12 +23,11 @@ class ReportController extends Controller
         $role = $user?->primaryRole;
 
         // Specialized clinical staff get redirected directly to their focused department report
-        if (in_array($role, ['med-tech', 'rad-tech', 'radiologist', 'pharmacist', 'dietitian', 'or-coordinator'], true)) {
+        if (in_array($role, ['med-tech', 'rad-tech', 'radiologist', 'pharmacist', 'or-coordinator'], true)) {
             return match ($role) {
                 'med-tech'                => redirect()->route('reports.laboratory.activity'),
                 'rad-tech', 'radiologist' => redirect()->route('reports.radiology.activity'),
                 'pharmacist'              => redirect()->route('reports.pharmacy.activity'),
-                'dietitian'               => redirect()->route('reports.diet.activity'),
                 'or-coordinator'          => redirect()->route('reports.surgery.activity'),
                 default                   => redirect()->route('dashboard'),
             };
@@ -49,7 +48,7 @@ class ReportController extends Controller
         [$from, $to] = $this->reportService->parseDateRange($request);
         $summary = $this->reportService->labActivitySummary($from, $to);
         $records = $this->reportService->labActivityDetails($from, $to, $request);
-        $doctors = User::whereHas('roles', fn($q) => $q->where('slug', 'doctor'))->orderBy('name')->get(['id', 'name']);
+        $doctors = $this->doctorsForFilter();
 
         return view('reports.laboratory.activity', compact('summary', 'records', 'from', 'to', 'doctors'));
     }
@@ -71,7 +70,7 @@ class ReportController extends Controller
         $request->merge(['status' => 'Completed']);
         $summary = $this->reportService->labActivitySummary($from, $to);
         $records = $this->reportService->labActivityDetails($from, $to, $request);
-        $doctors = User::whereHas('roles', fn($q) => $q->where('slug', 'doctor'))->orderBy('name')->get(['id', 'name']);
+        $doctors = $this->doctorsForFilter();
 
         return view('reports.laboratory.completed', compact('summary', 'records', 'from', 'to', 'doctors'));
     }
@@ -83,7 +82,7 @@ class ReportController extends Controller
         $request->merge(['status' => 'Pending']);
         $summary = $this->reportService->labActivitySummary($from, $to);
         $records = $this->reportService->labActivityDetails($from, $to, $request);
-        $doctors = User::whereHas('roles', fn($q) => $q->where('slug', 'doctor'))->orderBy('name')->get(['id', 'name']);
+        $doctors = $this->doctorsForFilter();
 
         return view('reports.laboratory.pending', compact('summary', 'records', 'from', 'to', 'doctors'));
     }
@@ -98,7 +97,7 @@ class ReportController extends Controller
         [$from, $to] = $this->reportService->parseDateRange($request);
         $summary = $this->reportService->radiologyActivitySummary($from, $to);
         $records = $this->reportService->radiologyActivityDetails($from, $to, $request);
-        $doctors = User::whereHas('roles', fn($q) => $q->where('slug', 'doctor'))->orderBy('name')->get(['id', 'name']);
+        $doctors = $this->doctorsForFilter();
 
         return view('reports.radiology.activity', compact('summary', 'records', 'from', 'to', 'doctors'));
     }
@@ -120,7 +119,7 @@ class ReportController extends Controller
         $request->merge(['status' => 'Completed']);
         $summary = $this->reportService->radiologyActivitySummary($from, $to);
         $records = $this->reportService->radiologyActivityDetails($from, $to, $request);
-        $doctors = User::whereHas('roles', fn($q) => $q->where('slug', 'doctor'))->orderBy('name')->get(['id', 'name']);
+        $doctors = $this->doctorsForFilter();
 
         return view('reports.radiology.completed', compact('summary', 'records', 'from', 'to', 'doctors'));
     }
@@ -145,9 +144,10 @@ class ReportController extends Controller
         [$from, $to] = $this->reportService->parseDateRange($request);
         $summary = $this->reportService->pharmacyActivitySummary($from, $to);
         $records = $this->reportService->pharmacyActivityDetails($from, $to, $request);
-        $doctors = User::whereHas('roles', fn($q) => $q->where('slug', 'doctor'))->orderBy('name')->get(['id', 'name']);
+        $pmsReport = $this->reportService->pharmacyComprehensiveReport($from, $to, $request);
+        $doctors = $this->doctorsForFilter();
 
-        return view('reports.pharmacy.activity', compact('summary', 'records', 'from', 'to', 'doctors'));
+        return view('reports.pharmacy.activity', compact('summary', 'records', 'pmsReport', 'from', 'to', 'doctors'));
     }
 
     public function pharmacyDispensing(Request $request)
@@ -182,7 +182,7 @@ class ReportController extends Controller
         [$from, $to] = $this->reportService->parseDateRange($request);
         $summary = $this->reportService->surgeryActivitySummary($from, $to);
         $records = $this->reportService->surgeryActivityDetails($from, $to, $request);
-        $doctors = User::whereHas('roles', fn($q) => $q->where('slug', 'doctor'))->orderBy('name')->get(['id', 'name']);
+        $doctors = $this->doctorsForFilter();
 
         return view('reports.surgery.activity', compact('summary', 'records', 'from', 'to', 'doctors'));
     }
@@ -194,7 +194,7 @@ class ReportController extends Controller
         $request->merge(['status' => 'Completed']);
         $summary = $this->reportService->surgeryActivitySummary($from, $to);
         $records = $this->reportService->surgeryActivityDetails($from, $to, $request);
-        $doctors = User::whereHas('roles', fn($q) => $q->where('slug', 'doctor'))->orderBy('name')->get(['id', 'name']);
+        $doctors = $this->doctorsForFilter();
 
         return view('reports.surgery.completed', compact('summary', 'records', 'from', 'to', 'doctors'));
     }
@@ -241,7 +241,10 @@ class ReportController extends Controller
         [$from, $to] = $this->reportService->parseDateRange($request);
         $summary = $this->reportService->dietActivitySummary($from, $to);
         $records = $this->reportService->dietPlansByStatus($from, $to, 'Active', $request);
-        $dietitians = User::whereHas('roles', fn($q) => $q->where('slug', 'dietitian'))->orderBy('name')->get(['id', 'name']);
+        $dietitians = User::whereHas('roles', fn($q) => $q->where('slug', 'doctor'))
+            ->orWhereIn('id', \App\Models\DietPlan::select('dietitian_id'))
+            ->orderBy('name')
+            ->get(['id', 'name']);
 
         return view('reports.diet.active', compact('summary', 'records', 'from', 'to', 'dietitians'));
     }
@@ -252,7 +255,10 @@ class ReportController extends Controller
         [$from, $to] = $this->reportService->parseDateRange($request);
         $summary = $this->reportService->dietActivitySummary($from, $to);
         $records = $this->reportService->dietPlansByStatus($from, $to, 'Completed', $request);
-        $dietitians = User::whereHas('roles', fn($q) => $q->where('slug', 'dietitian'))->orderBy('name')->get(['id', 'name']);
+        $dietitians = User::whereHas('roles', fn($q) => $q->where('slug', 'doctor'))
+            ->orWhereIn('id', \App\Models\DietPlan::select('dietitian_id'))
+            ->orderBy('name')
+            ->get(['id', 'name']);
 
         return view('reports.diet.completed', compact('summary', 'records', 'from', 'to', 'dietitians'));
     }
@@ -266,17 +272,28 @@ class ReportController extends Controller
         $this->authorizeCategory('clinical');
         [$from, $to] = $this->reportService->parseDateRange($request);
 
-        $query = Patient::withCount([
-            'labRequests' => fn($q) => $q->whereBetween('requested_at', [$from, $to]),
-            'radiologyRequests' => fn($q) => $q->whereBetween('requested_at', [$from, $to]),
-            'prescriptions' => fn($q) => $q->whereBetween('prescribed_at', [$from, $to]),
-            'surgeryRequests' => fn($q) => $q->whereBetween('requested_at', [$from, $to]),
-            'dietRequests' => fn($q) => $q->whereBetween('requested_at', [$from, $to]),
-        ])->having('lab_requests_count', '>', 0)
-          ->orHaving('radiology_requests_count', '>', 0)
-          ->orHaving('prescriptions_count', '>', 0)
-          ->orHaving('surgery_requests_count', '>', 0)
-          ->orHaving('diet_requests_count', '>', 0);
+        /** @var User|null $user */
+        $user = Auth::user();
+        $isDoctor = $user?->primaryRole === 'doctor';
+        $doctorId = $isDoctor ? (int) $user->id : null;
+
+        $query = Patient::query();
+        if ($isDoctor && $user) {
+            $query->authorizedForDoctor($user);
+        }
+
+        $query->withCount([
+            'labRequests' => fn($q) => $q->whereBetween('requested_at', [$from, $to])
+                ->when($doctorId, fn($sq) => $sq->where('doctor_id', $doctorId)),
+            'radiologyRequests' => fn($q) => $q->whereBetween('requested_at', [$from, $to])
+                ->when($doctorId, fn($sq) => $sq->where('doctor_id', $doctorId)),
+            'prescriptions' => fn($q) => $q->whereBetween('prescribed_at', [$from, $to])
+                ->when($doctorId, fn($sq) => $sq->where('doctor_id', $doctorId)),
+            'surgeryRequests' => fn($q) => $q->whereBetween('requested_at', [$from, $to])
+                ->when($isDoctor && $user, fn($sq) => $sq->visibleTo($user)),
+            'dietRequests' => fn($q) => $q->whereBetween('requested_at', [$from, $to])
+                ->when($isDoctor && $user, fn($sq) => $sq->visibleTo($user)),
+        ])->havingRaw('(lab_requests_count + radiology_requests_count + prescriptions_count + surgery_requests_count + diet_requests_count) > 0');
 
         $records = $query->orderBy('last_name')->paginate(25)->withQueryString();
 
@@ -288,7 +305,16 @@ class ReportController extends Controller
         $this->authorizeCategory('clinical');
         [$from, $to] = $this->reportService->parseDateRange($request);
 
-        $doctors = User::whereHas('roles', fn($q) => $q->where('slug', 'doctor'))
+        /** @var User|null $user */
+        $user = Auth::user();
+        $isDoctor = $user?->primaryRole === 'doctor';
+
+        $doctorsQuery = User::whereHas('roles', fn($q) => $q->where('slug', 'doctor'));
+        if ($isDoctor && $user) {
+            $doctorsQuery->whereKey($user->id);
+        }
+
+        $doctors = $doctorsQuery
             ->withCount([
                 'labRequestsAsDoctor' => fn($q) => $q->whereBetween('requested_at', [$from, $to]),
                 'radiologyRequestsAsDoctor' => fn($q) => $q->whereBetween('requested_at', [$from, $to]),
@@ -308,7 +334,16 @@ class ReportController extends Controller
         return view('reports.clinical.services-summary', compact('summary', 'from', 'to'));
     }
 
-    // ── Authorization helper ─────────────────────────────────────
+    // ── Authorization & filter helpers ───────────────────────────
+
+    private function doctorsForFilter()
+    {
+        if (Auth::user()?->primaryRole === 'doctor') {
+            return collect();
+        }
+
+        return User::whereHas('roles', fn($q) => $q->where('slug', 'doctor'))->orderBy('name')->get(['id', 'name']);
+    }
 
     private function authorizeCategory(string $category): void
     {

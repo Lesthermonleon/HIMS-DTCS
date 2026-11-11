@@ -131,7 +131,7 @@
         </div>
 
         <div id="role-details-wrapper">
-            @include('admin.roles._role_details', ['selectedRole' => $selectedRole])
+            @include('admin.roles._role_details', ['selectedRole' => $selectedRole, 'allPermissions' => $allPermissions ?? collect()])
         </div>
     </div>
 

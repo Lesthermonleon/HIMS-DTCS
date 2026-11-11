@@ -23,7 +23,11 @@ class RadiologyRequestPolicy
      */
     public function view(User $user, RadiologyRequest $radiologyRequest): bool
     {
-        return $user->hasAnyRole(['admin', 'doctor', 'rad-tech', 'radiologist']);
+        if ($user->hasRole('doctor') && ! $user->hasAnyRole(['admin', 'super_admin'])) {
+            return $radiologyRequest->doctor_id === $user->id;
+        }
+
+        return $user->hasAnyRole(['admin', 'super_admin', 'rad-tech', 'radiologist']);
     }
 
     /**

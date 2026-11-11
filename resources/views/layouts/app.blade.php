@@ -2512,6 +2512,14 @@
             gap: 2px;
             transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
+        #page-titlebar.has-custom-titlebar {
+            height: auto;
+            min-height: 54px;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.45rem 1.25rem;
+        }
         #page-titlebar-text {
             font-family: var(--font-display);
             font-weight: 700;
@@ -2657,7 +2665,6 @@
             background: var(--card);
             border-radius: .75rem;
             border: 1px solid var(--line);
-            border-left: 3px solid var(--signal);
             padding: clamp(0.75rem, 1.8vw, 1.25rem) !important;
             box-shadow: 0 1px 4px rgba(10,31,28,.06);
             overflow: hidden;
@@ -2667,10 +2674,9 @@
             min-width: 0 !important;
             max-width: 100% !important;
         }
-        .stat-card.card-signal { border-left-color: var(--signal); }
-        .stat-card.card-coral  { border-left-color: var(--coral);  }
-        .stat-card.card-amber  { border-left-color: var(--amber);  }
-        .stat-card.card-steel  { border-left-color: var(--steel);  }
+        .stat-card.card-coral  { border-left: 3px solid var(--coral);  }
+        .stat-card.card-amber  { border-left: 3px solid var(--amber);  }
+        .stat-card.card-steel  { border-left: 3px solid var(--steel);  }
 
         /* Locked Horizontal Card-Body Rows — [A] [B] [C] [D] Horizontal Positioning */
         .stat-card-top,
@@ -3150,7 +3156,6 @@
         /* Success Theme */
         .toast-success {
             background: #DCFCE7 !important;
-            border-left: 4px solid #10B981 !important;
         }
         .toast-success .toast-icon {
             color: #10B981 !important;
@@ -3209,7 +3214,6 @@
         }
         .alert-success {
             background: #DCFCE7 !important;
-            border-left: 4px solid #10B981 !important;
             color: #475569 !important;
         }
         .alert-danger {
@@ -3569,7 +3573,10 @@
                         $roleTagline = '';
                         $brandSuffix = 'DTCS';
                         $primaryRole = auth()->user()->primaryRole;
-                        if ($primaryRole === 'admin') {
+                        if ($primaryRole === 'super_admin') {
+                            $roleTagline = 'Super Administrator';
+                            $brandSuffix = 'Master';
+                        } elseif ($primaryRole === 'admin') {
                             $roleTagline = 'Administrator';
                             $brandSuffix = 'Admin';
                         } elseif ($primaryRole === 'med-tech') {
@@ -3743,7 +3750,7 @@
 </header>
 
 {{-- ═══ PAGE TITLE BAR ═══ --}}
-<div id="page-titlebar">
+<div id="page-titlebar" class="@hasSection('page-titlebar-custom') has-custom-titlebar @endif">
     @hasSection('page-titlebar-custom')
         @yield('page-titlebar-custom')
     @else

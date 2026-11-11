@@ -1,0 +1,1842 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DTCS Pharmacy POS</title>
+
+<style>
+:root {
+    --primary: #0f5265;
+    --primary-dark: #103b50;
+    --primary-light: #e8f2f5;
+    --accent: #167d8d;
+    --shell: #f3f6f8;
+    --surface: #ffffff;
+    --surface-soft: #f8fafc;
+    --ink: #263746;
+    --muted: #718096;
+    --line: #dce4ea;
+    --success: #27845b;
+    --success-bg: #eaf6ef;
+    --warning: #b7791f;
+    --warning-bg: #fff5df;
+    --danger: #c04444;
+    --danger-bg: #fff0f0;
+    --shadow: 0 2px 8px rgba(20, 45, 60, .06);
+    --radius: 10px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    padding: 18px;
+    background: var(--shell);
+    color: var(--ink);
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+button, input, select {
+    font: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+button:disabled {
+    cursor: not-allowed;
+    opacity: .55;
+}
+
+.pos-shell {
+    width: 100%;
+    height: calc(100vh - 36px);
+    min-height: 620px;
+    display: grid;
+    grid-template-columns: minmax(0, 1.8fr) minmax(320px, .95fr) 66px;
+    gap: 12px;
+}
+
+/* =========================
+   CATALOG
+========================= */
+
+.catalog,
+.order-panel {
+    min-height: 0;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.catalog {
+    display: flex;
+    flex-direction: column;
+}
+
+.catalog-header {
+    min-height: 55px;
+    padding: 0 17px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--line);
+    gap: 12px;
+}
+
+.catalog-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--primary-dark);
+}
+
+.catalog-subtitle {
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 3px;
+}
+
+.category-bar {
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    padding: 0 17px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    overflow-x: auto;
+    white-space: nowrap;
+}
+
+.category {
+    position: relative;
+    flex-shrink: 0;
+    border: 0;
+    padding: 14px 0;
+    background: transparent;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.category:hover {
+    color: var(--primary);
+}
+
+.category.active {
+    color: var(--primary);
+}
+
+.category.active::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    border-radius: 3px 3px 0 0;
+    background: var(--accent);
+}
+
+.catalog-body {
+    padding: 17px;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+}
+
+.search-toolbar {
+    display: flex;
+    gap: 9px;
+    margin-bottom: 19px;
+}
+
+.search-wrap {
+    position: relative;
+    flex: 1;
+}
+
+.search-icon {
+    position: absolute;
+    left: 13px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    font-size: 18px;
+    pointer-events: none;
+}
+
+.search {
+    width: 100%;
+    height: 42px;
+    padding: 9px 13px 9px 39px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    outline: none;
+    background: var(--surface-soft);
+    color: var(--ink);
+    font-size: 13px;
+    transition: .15s;
+}
+
+.search:focus {
+    border-color: var(--accent);
+    background: white;
+    box-shadow: 0 0 0 3px rgba(22, 125, 141, .10);
+}
+
+.barcode-button {
+    min-width: 90px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: white;
+    color: var(--primary);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.barcode-button:hover {
+    background: var(--primary-light);
+    border-color: var(--accent);
+}
+
+.product-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 13px;
+}
+
+.product {
+    min-width: 0;
+    min-height: 155px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: stretch;
+    padding: 13px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: white;
+    color: var(--ink);
+    text-align: left;
+    transition: .16s ease;
+}
+
+.product:hover:not(:disabled) {
+    border-color: var(--accent);
+    box-shadow: 0 4px 14px rgba(15, 82, 101, .10);
+    transform: translateY(-2px);
+}
+
+.product:disabled {
+    background: #f8fafc;
+    opacity: .7;
+}
+
+.product-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 5px;
+}
+
+.product-icon {
+    width: 39px;
+    height: 39px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: var(--primary-light);
+    color: var(--primary);
+    font-size: 19px;
+}
+
+.stock-badge {
+    padding: 4px 7px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.stock-good {
+    color: var(--success);
+    background: var(--success-bg);
+}
+
+.stock-low {
+    color: var(--warning);
+    background: var(--warning-bg);
+}
+
+.stock-out {
+    color: var(--danger);
+    background: var(--danger-bg);
+}
+
+.product-name {
+    display: block;
+    margin-top: 9px;
+    font-size: 13px;
+    line-height: 1.35;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.product-strength {
+    margin-top: 3px;
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.product-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 5px;
+    margin-top: 12px;
+}
+
+.product-price {
+    color: var(--primary-dark);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.product-add {
+    color: var(--accent);
+    font-size: 17px;
+    font-weight: 700;
+}
+
+.empty {
+    color: var(--muted);
+    padding: 24px 0;
+    font-size: 13px;
+}
+
+/* =========================
+   ORDER PANEL
+========================= */
+
+.order-panel {
+    display: flex;
+    flex-direction: column;
+}
+
+.order-heading {
+    min-height: 55px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--line);
+}
+
+.order-heading strong {
+    color: var(--primary-dark);
+    font-size: 14px;
+}
+
+.order-count {
+    padding: 4px 8px;
+    border-radius: 20px;
+    background: var(--primary-light);
+    color: var(--primary);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.order-items {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 14px 15px;
+}
+
+.order-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 0 0 14px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid #edf1f4;
+}
+
+.order-item-heading {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+}
+
+.order-item strong {
+    display: block;
+    min-width: 0;
+    color: var(--ink);
+    font-size: 12px;
+    overflow-wrap: anywhere;
+}
+
+.order-item small {
+    display: block;
+    margin-top: 5px;
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.edit-item-button {
+    flex-shrink: 0;
+    width: 25px;
+    height: 25px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: white;
+    color: var(--primary);
+    padding: 4px;
+}
+
+.edit-item-button:hover {
+    background: var(--primary-light);
+    border-color: var(--accent);
+}
+
+.edit-item-button svg {
+    width: 14px;
+    height: 14px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.item-price {
+    align-self: center;
+    color: var(--ink);
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.summary {
+    flex-shrink: 0;
+    padding: 13px 16px;
+    border-top: 1px solid var(--line);
+    background: var(--surface-soft);
+}
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin: 8px 0;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.summary-row strong {
+    color: var(--ink);
+    font-weight: 700;
+}
+
+.total {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: space-between;
+    padding: 14px 16px;
+    background: var(--primary-light);
+    color: var(--primary-dark);
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.total span:last-child {
+    font-size: 18px;
+}
+
+.pay-wrap {
+    flex-shrink: 0;
+    padding: 12px 15px 15px;
+}
+
+.pay-button {
+    width: 100%;
+    min-height: 45px;
+    border: 0;
+    border-radius: 7px;
+    background: var(--primary);
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .3px;
+    transition: .15s;
+}
+
+.pay-button:hover {
+    background: var(--primary-dark);
+}
+
+/* =========================
+   ACTION TOOLBAR
+========================= */
+
+.action-tabs {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+}
+
+.action-button {
+    min-height: 65px;
+    padding: 8px 3px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: white;
+    color: var(--primary);
+    box-shadow: var(--shadow);
+    transition: .15s;
+}
+
+.action-button:hover:not(:disabled) {
+    background: var(--primary-light);
+    border-color: var(--accent);
+}
+
+.action-button svg {
+    width: 21px;
+    height: 21px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.action-label {
+    color: var(--muted);
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+/* =========================
+   MODALS
+========================= */
+
+.modal-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: rgba(15, 35, 48, .48);
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+}
+
+.modal-backdrop.show {
+    display: flex;
+}
+
+.modal {
+    width: min(430px, 100%);
+    max-height: calc(100vh - 36px);
+    overflow-y: auto;
+    padding: 23px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: white;
+    box-shadow: 0 15px 45px rgba(15, 35, 48, .20);
+}
+
+.discount-modal {
+    width: min(460px, 100%);
+}
+
+.modal h2 {
+    margin: 0 0 8px;
+    color: var(--primary-dark);
+    font-size: 19px;
+}
+
+.modal p {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.modal label {
+    display: block;
+    margin: 15px 0 6px;
+    color: var(--ink);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.modal input,
+.modal select {
+    width: 100%;
+    min-height: 41px;
+    padding: 9px 11px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: white;
+    color: var(--ink);
+    font-size: 13px;
+    outline: none;
+}
+
+.modal input:focus,
+.modal select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(22, 125, 141, .10);
+}
+
+.modal input[readonly] {
+    background: #f1f5f8;
+    color: var(--muted);
+}
+
+.stock-info,
+.discount-rate-info {
+    margin-top: 9px;
+    padding: 10px 11px;
+    border: 1px solid #d9e8ed;
+    border-radius: 7px;
+    background: var(--primary-light);
+    color: var(--primary-dark);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.optional-label {
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 400;
+}
+
+.modal-error {
+    display: none;
+    margin: 9px 0 0;
+    color: var(--danger) !important;
+    font-size: 12px !important;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 21px;
+}
+
+.modal-actions button {
+    min-height: 38px;
+    padding: 9px 15px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: white;
+    color: var(--ink);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.modal-actions button:hover {
+    background: var(--surface-soft);
+}
+
+.modal-actions .primary {
+    border-color: var(--primary);
+    background: var(--primary);
+    color: white;
+}
+
+.modal-actions .primary:hover {
+    background: var(--primary-dark);
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media (max-width: 1100px) {
+    body {
+        padding: 12px;
+    }
+
+    .pos-shell {
+        grid-template-columns: minmax(0, 1.5fr) minmax(290px, 1fr) 60px;
+        gap: 9px;
+    }
+
+    .product-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 850px) {
+    .pos-shell {
+        height: auto;
+        min-height: calc(100vh - 24px);
+        grid-template-columns: minmax(0, 1fr) minmax(270px, .85fr);
+        grid-template-rows: minmax(540px, 1fr) auto;
+    }
+
+    .action-tabs {
+        grid-column: 1 / -1;
+        flex-direction: row;
+    }
+
+    .action-button {
+        flex: 1;
+        min-height: 57px;
+    }
+}
+
+@media (max-width: 620px) {
+    body {
+        padding: 8px;
+    }
+
+    .pos-shell {
+        display: flex;
+        flex-direction: column;
+        height: auto;
+    }
+
+    .catalog {
+        min-height: 570px;
+    }
+
+    .order-panel {
+        height: 500px;
+        flex-shrink: 0;
+    }
+
+    .action-tabs {
+        order: -1;
+    }
+
+    .product-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .catalog-header {
+        min-height: 48px;
+    }
+
+    .category-bar {
+        gap: 17px;
+    }
+
+    .catalog-body {
+        padding: 12px;
+    }
+
+    .product {
+        min-height: 145px;
+    }
+
+    .action-button {
+        min-height: 55px;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<main class="pos-shell">
+
+    <!-- PRODUCT CATALOG -->
+    <section class="catalog">
+
+        <header class="catalog-header">
+            <div>
+                <div class="catalog-title">Pharmacy Point of Sale</div>
+                <div class="catalog-subtitle">Medicine Catalog and Dispensing Sales</div>
+            </div>
+            <span class="order-count">POS #01</span>
+        </header>
+
+        <nav class="category-bar">
+            <button class="category active" data-category="ALL ITEM">All Items</button>
+            <button class="category" data-category="DEFAULT">Default</button>
+            <button class="category" data-category="BEST SELLER">Best Seller</button>
+            <button class="category" data-category="OTHER / SPECIAL">Others / Special</button>
+            <button class="category" data-category="VITAMINS & SUPPLEMENT">Vitamins & Supplements</button>
+        </nav>
+
+        <div class="catalog-body">
+
+            <div class="search-toolbar">
+                <button class="barcode-button" id="barcodeButton" type="button">▦ Barcode</button>
+
+                <div class="search-wrap">
+                    <span class="search-icon">⌕</span>
+                    <input
+                        class="search"
+                        id="search"
+                        type="search"
+                        placeholder="Search medicine or product..."
+                        aria-label="Search product"
+                    >
+                </div>
+            </div>
+
+            <div class="product-grid" id="productGrid"></div>
+        </div>
+    </section>
+
+    <!-- ORDER SUMMARY -->
+    <aside class="order-panel">
+
+        <div class="order-heading">
+            <strong>Order Summary</strong>
+            <span class="order-count" id="orderCount">0 Items</span>
+        </div>
+
+        <div class="order-items" id="orderItems"></div>
+
+        <div class="summary">
+            <div class="summary-row">
+                <span>Patient Type</span>
+                <strong id="patientTypeDisplay">Not selected</strong>
+            </div>
+
+            <div class="summary-row">
+                <span>Subtotal</span>
+                <strong id="subtotal">₱ 0.00</strong>
+            </div>
+
+            <div class="summary-row">
+                <span>VAT</span>
+                <strong id="vat">₱ 0.00</strong>
+            </div>
+
+            <div class="summary-row">
+                <span id="discountLabel">Discount</span>
+                <strong id="discount">₱ 0.00</strong>
+            </div>
+        </div>
+
+        <div class="total">
+            <span>Total</span>
+            <span id="total">₱ 0.00</span>
+        </div>
+
+        <div class="pay-wrap">
+            <button class="pay-button" id="payButton">
+                Proceed to Payment →
+            </button>
+        </div>
+    </aside>
+
+    <!-- ACTION BUTTONS -->
+    <nav class="action-tabs" aria-label="Order actions">
+
+        <button class="action-button" id="discountButton" type="button" title="Apply discount">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M20.5 13.5 13.5 20.5 3 10V3h7l10.5 10.5Z"/>
+                <circle cx="7.5" cy="7.5" r="1.2"/>
+                <path d="m9 15 6-6"/>
+            </svg>
+            <span class="action-label">Discount</span>
+        </button>
+
+        <button class="action-button" id="patientTypeButton" type="button" title="Select patient type">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M3 21V7l9-4 9 4v14"/>
+                <path d="M9 21v-5h6v5M8 10h.01M16 10h.01M12 8v4M10 10h4"/>
+            </svg>
+            <span class="action-label">Patient Type</span>
+        </button>
+
+        <button class="action-button" id="clearButton" type="button" title="Clear current order">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M3 6h18"/>
+                <path d="M8 6V4h8v2"/>
+                <path d="m19 6-1 14H6L5 6"/>
+                <path d="M10 11v5M14 11v5"/>
+            </svg>
+            <span class="action-label">Clear</span>
+        </button>
+
+    </nav>
+</main>
+
+<!-- EDIT ORDER ITEM MODAL -->
+<div class="modal-backdrop" id="editItemModal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="editItemTitle">
+        <h2 id="editItemTitle">Edit Order Item</h2>
+        <p>Only the available stock strength and order quantity can be changed.</p>
+
+        <label for="editItemName">Product / Medicine Name</label>
+        <input id="editItemName" type="text" readonly>
+
+        <label for="editItemStrength">Available Strength / Dosage</label>
+        <select id="editItemStrength"></select>
+
+        <div class="stock-info" id="editItemStockInfo">
+            Select an available stock variant.
+        </div>
+
+        <label for="editItemQty">Quantity</label>
+        <input id="editItemQty" type="number" min="1" step="1" value="1">
+
+        <p class="modal-error" id="editItemError">
+            Select an available strength and enter a valid quantity.
+        </p>
+
+        <div class="modal-actions">
+            <button id="cancelEditItem" type="button">Cancel</button>
+            <button class="primary" id="saveEditItem" type="button">Save Changes</button>
+        </div>
+    </div>
+</div>
+
+<!-- GOVERNMENT DISCOUNT MODAL -->
+<div class="modal-backdrop" id="discountModal">
+    <div class="modal discount-modal" role="dialog" aria-modal="true" aria-labelledby="discountTitle">
+        <h2 id="discountTitle">Apply Government Discount</h2>
+        <p>Enter the customer's information to apply the selected discount.</p>
+
+        <label for="governmentDiscountType">Discount Type</label>
+        <select id="governmentDiscountType">
+            <option value="">Select discount type</option>
+            <option value="senior">Senior Citizen</option>
+            <option value="pwd">Person with Disability (PWD)</option>
+            <option value="solo_parent">Solo Parent</option>
+        </select>
+
+        <div class="discount-rate-info" id="discountRateInfo">
+            Select a discount type to view its configured prototype rate.
+        </div>
+
+        <label for="customerName">Customer Name</label>
+        <input id="customerName" type="text" placeholder="Enter customer's full name">
+
+        <label for="governmentIdNumber" id="governmentIdLabel">Government ID Number</label>
+        <input id="governmentIdNumber" type="text" placeholder="Enter government ID number">
+
+        <label for="customerTin">
+            TIN ID <span class="optional-label">(Optional)</span>
+        </label>
+        <input id="customerTin" type="text" placeholder="Enter TIN ID (optional)">
+
+        <p class="modal-error" id="discountError">
+            Please complete the required customer information.
+        </p>
+
+        <div class="modal-actions">
+            <button id="cancelDiscount" type="button">Cancel</button>
+            <button class="primary" id="applyDiscount" type="button">Apply Discount</button>
+        </div>
+    </div>
+</div>
+
+<!-- PATIENT TYPE MODAL -->
+<div class="modal-backdrop" id="patientTypeModal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="patientTypeTitle">
+        <h2 id="patientTypeTitle">Select Patient Type</h2>
+        <p>Choose whether this transaction is for an outpatient or an inpatient.</p>
+
+        <label for="patientTypeSelect">Patient Type</label>
+        <select id="patientTypeSelect">
+            <option value="">Select patient type</option>
+            <option value="outpatient">Outpatient</option>
+            <option value="inpatient">Inpatient</option>
+        </select>
+
+        <p class="modal-error" id="patientTypeError">
+            Please select Outpatient or Inpatient.
+        </p>
+
+        <div class="modal-actions">
+            <button id="cancelPatientType" type="button">Cancel</button>
+            <button class="primary" id="applyPatientType" type="button">Apply</button>
+        </div>
+    </div>
+</div>
+
+<!-- PAYMENT MODAL -->
+<div class="modal-backdrop" id="paymentModal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="paymentTitle">
+        <h2 id="paymentTitle">Proceed to Payment</h2>
+        <p id="paymentMessage">Confirm this order and continue to payment.</p>
+
+        <div class="modal-actions">
+            <button id="cancelPayment" type="button">Cancel</button>
+            <button class="primary" id="confirmPayment" type="button">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<script>
+
+/* =========================
+   SAMPLE STOCK CATALOG
+   DEMONSTRATION DATA ONLY
+========================= */
+
+const products = [
+    {
+        id: 1, name: "Paracetamol", category: "DEFAULT",
+        variants: [
+            { id: "para-250", strength: "250mg", price: 4, stock: 30 },
+            { id: "para-500", strength: "500mg", price: 5, stock: 50 }
+        ]
+    },
+    {
+        id: 2, name: "Mefenamic Acid", category: "DEFAULT",
+        variants: [
+            { id: "mefe-250", strength: "250mg", price: 4, stock: 20 },
+            { id: "mefe-500", strength: "500mg", price: 5, stock: 25 }
+        ]
+    },
+    {
+        id: 3, name: "Vitamin C", category: "VITAMINS & SUPPLEMENT",
+        variants: [
+            { id: "vitc-500", strength: "500mg", price: 12, stock: 40 },
+            { id: "vitc-1000", strength: "1000mg", price: 18, stock: 15 }
+        ]
+    },
+    {
+        id: 4, name: "Multivitamins", category: "VITAMINS & SUPPLEMENT",
+        variants: [
+            { id: "multi-standard", strength: "Standard", price: 15, stock: 25 }
+        ]
+    },
+    {
+        id: 5, name: "Cetirizine", category: "BEST SELLER",
+        variants: [
+            { id: "ceti-5", strength: "5mg", price: 7, stock: 20 },
+            { id: "ceti-10", strength: "10mg", price: 8, stock: 35 }
+        ]
+    },
+    {
+        id: 6, name: "Omeprazole", category: "DEFAULT",
+        variants: [
+            { id: "ome-20", strength: "20mg", price: 10, stock: 24 },
+            { id: "ome-40", strength: "40mg", price: 14, stock: 12 }
+        ]
+    },
+    {
+        id: 7, name: "Alcohol", category: "OTHER / SPECIAL",
+        variants: [
+            { id: "alcohol-70", strength: "70% / 250ml", price: 25, stock: 18 },
+            { id: "alcohol-70-500", strength: "70% / 500ml", price: 42, stock: 10 }
+        ]
+    },
+    {
+        id: 8, name: "Bandage Roll", category: "OTHER / SPECIAL",
+        variants: [
+            { id: "bandage-standard", strength: "Standard", price: 18, stock: 22 }
+        ]
+    },
+    {
+        id: 9, name: "Ibuprofen", category: "BEST SELLER",
+        variants: [
+            { id: "ibu-200", strength: "200mg", price: 7, stock: 30 },
+            { id: "ibu-400", strength: "400mg", price: 11, stock: 16 }
+        ]
+    },
+    {
+        id: 10, name: "Vitamin B Complex", category: "VITAMINS & SUPPLEMENT",
+        variants: [
+            { id: "vitb-standard", strength: "Standard", price: 14, stock: 28 }
+        ]
+    },
+    {
+        id: 11, name: "Loperamide", category: "DEFAULT",
+        variants: [
+            { id: "lope-2", strength: "2mg", price: 6, stock: 25 }
+        ]
+    },
+    {
+        id: 12, name: "Oral Rehydration Salts", category: "OTHER / SPECIAL",
+        variants: [
+            { id: "ors-standard", strength: "Standard sachet", price: 9, stock: 32 }
+        ]
+    },
+    {
+        id: 13, name: "Amoxicillin", category: "DEFAULT",
+        variants: [
+            { id: "amox-250", strength: "250mg", price: 12, stock: 15 },
+            { id: "amox-500", strength: "500mg", price: 16, stock: 20 }
+        ]
+    },
+    {
+        id: 14, name: "Calcium + Vitamin D", category: "VITAMINS & SUPPLEMENT",
+        variants: [
+            { id: "cald-standard", strength: "Standard", price: 20, stock: 18 }
+        ]
+    },
+    {
+        id: 15, name: "Bioflu", category: "BEST SELLER",
+        variants: [
+            { id: "bioflu-standard", strength: "Standard", price: 9, stock: 26 }
+        ]
+    },
+    {
+        id: 16, name: "Antacid", category: "OTHER / SPECIAL",
+        variants: [
+            { id: "antacid-standard", strength: "Standard", price: 8, stock: 21 }
+        ]
+    }
+];
+
+/* =========================
+   APPLICATION STATE
+========================= */
+
+let cart = [];
+let activeCategory = "ALL ITEM";
+let discountPercent = 0;
+let appliedDiscount = null;
+let editingItemId = null;
+let patientType = null;
+
+const money = value => "₱ " + value.toFixed(2);
+
+const productGrid = document.getElementById("productGrid");
+const orderItems = document.getElementById("orderItems");
+
+/* =========================
+   STOCK HELPERS
+========================= */
+
+function getProduct(productId) {
+    return products.find(product => product.id === productId);
+}
+
+function getVariant(productId, variantId) {
+    const product = getProduct(productId);
+    return product?.variants.find(variant => variant.id === variantId) || null;
+}
+
+function getCartQuantity(productId, variantId, excludeEntryId = null) {
+    return cart.reduce((total, entry) => {
+        if (
+            entry.productId === productId &&
+            entry.variantId === variantId &&
+            entry.cartItemId !== excludeEntryId
+        ) {
+            return total + entry.qty;
+        }
+        return total;
+    }, 0);
+}
+
+function getAvailableStock(productId, variantId, excludeEntryId = null) {
+    const variant = getVariant(productId, variantId);
+    if (!variant) return 0;
+
+    return Math.max(
+        0,
+        variant.stock - getCartQuantity(productId, variantId, excludeEntryId)
+    );
+}
+
+function getDefaultAvailableVariant(product) {
+    return product.variants.find(variant =>
+        getAvailableStock(product.id, variant.id) > 0
+    ) || null;
+}
+
+function getCartItem(productId, variantId) {
+    return cart.find(entry =>
+        entry.productId === productId && entry.variantId === variantId
+    );
+}
+
+/* =========================
+   PRODUCT DISPLAY
+========================= */
+
+function renderProducts() {
+    const term = document.getElementById("search").value.trim().toLowerCase();
+
+    const filtered = products.filter(product => {
+        const categoryMatch =
+            activeCategory === "ALL ITEM" || product.category === activeCategory;
+
+        const searchMatch =
+            product.name.toLowerCase().includes(term) ||
+            product.variants.some(variant =>
+                variant.strength.toLowerCase().includes(term)
+            );
+
+        return categoryMatch && searchMatch;
+    });
+
+    productGrid.innerHTML = "";
+
+    if (!filtered.length) {
+        productGrid.innerHTML = '<p class="empty">No products found.</p>';
+        return;
+    }
+
+    filtered.forEach(product => {
+        const button = document.createElement("button");
+        button.className = "product";
+        button.type = "button";
+
+        const availableVariant = getDefaultAvailableVariant(product);
+
+        const inStockCount = product.variants.reduce((sum, variant) =>
+            sum + getAvailableStock(product.id, variant.id), 0
+        );
+
+        const stockClass = inStockCount === 0
+            ? "stock-out"
+            : inStockCount <= 10
+                ? "stock-low"
+                : "stock-good";
+
+        button.innerHTML = `
+            <div class="product-top">
+                <span class="product-icon">✚</span>
+                <span class="stock-badge ${stockClass}">
+                    ${inStockCount === 0 ? "Out of Stock" : inStockCount + " Available"}
+                </span>
+            </div>
+            <div>
+                <span class="product-name"></span>
+                <span class="product-strength"></span>
+            </div>
+            <div class="product-bottom">
+                <span class="product-price"></span>
+                <span class="product-add">+</span>
+            </div>
+        `;
+
+        button.querySelector(".product-name").textContent = product.name;
+
+        button.querySelector(".product-strength").textContent =
+            availableVariant ? availableVariant.strength : "Unavailable";
+
+        button.querySelector(".product-price").textContent =
+            availableVariant ? money(availableVariant.price) : "Unavailable";
+
+        button.disabled = !availableVariant;
+
+        button.addEventListener("click", () => {
+            if (availableVariant) {
+                addToCart(product.id, availableVariant.id);
+            }
+        });
+
+        productGrid.appendChild(button);
+    });
+}
+
+/* =========================
+   ADD TO CART
+========================= */
+
+function addToCart(productId, variantId) {
+    const product = getProduct(productId);
+    const variant = getVariant(productId, variantId);
+
+    if (!product || !variant) return;
+
+    const existingItem = getCartItem(productId, variantId);
+    const availableStock = getAvailableStock(productId, variantId);
+
+    if (availableStock <= 0) {
+        alert(`No available stock for ${product.name} ${variant.strength}.`);
+        return;
+    }
+
+    if (existingItem) {
+        existingItem.qty += 1;
+    } else {
+        cart.push({
+            cartItemId: `${productId}-${variantId}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            productId,
+            variantId,
+            qty: 1
+        });
+    }
+
+    renderCart();
+    renderProducts();
+}
+
+/* =========================
+   EDIT ORDER ITEM
+========================= */
+
+function updateEditStockInfo() {
+    const entry = cart.find(item => item.cartItemId === editingItemId);
+    if (!entry) return;
+
+    const selectedVariantId =
+        document.getElementById("editItemStrength").value;
+
+    const variant = getVariant(entry.productId, selectedVariantId);
+
+    const available = getAvailableStock(
+        entry.productId,
+        selectedVariantId,
+        entry.cartItemId
+    );
+
+    const qtyInput = document.getElementById("editItemQty");
+    const info = document.getElementById("editItemStockInfo");
+
+    if (!variant) {
+        qtyInput.max = 0;
+        info.textContent = "No stock variant is selected.";
+        return;
+    }
+
+    qtyInput.max = available;
+
+    if (available <= 0) {
+        qtyInput.value = 0;
+        qtyInput.min = 0;
+        info.textContent =
+            `No available stock for ${variant.strength}. Choose another strength.`;
+    } else {
+        qtyInput.min = 1;
+
+        if (Number(qtyInput.value) > available) {
+            qtyInput.value = available;
+        }
+
+        if (Number(qtyInput.value) < 1 || qtyInput.value === "") {
+            qtyInput.value = Math.min(entry.qty, available);
+        }
+
+        info.textContent =
+            `${available} unit(s) available for this strength. Unit price: ${money(variant.price)}.`;
+    }
+}
+
+function openEditItem(cartItemId) {
+    const entry = cart.find(item => item.cartItemId === cartItemId);
+    if (!entry) return;
+
+    const product = getProduct(entry.productId);
+    if (!product) return;
+
+    editingItemId = cartItemId;
+
+    document.getElementById("editItemName").value = product.name;
+
+    const strengthSelect = document.getElementById("editItemStrength");
+    strengthSelect.innerHTML = "";
+
+    product.variants.forEach(variant => {
+        const available = getAvailableStock(
+            product.id,
+            variant.id,
+            entry.cartItemId
+        );
+
+        if (available > 0 || variant.id === entry.variantId) {
+            const option = document.createElement("option");
+            option.value = variant.id;
+            option.textContent = `${variant.strength} — ${available} available`;
+            strengthSelect.appendChild(option);
+        }
+    });
+
+    strengthSelect.value = entry.variantId;
+
+    document.getElementById("editItemQty").value = entry.qty;
+    document.getElementById("editItemError").style.display = "none";
+    document.getElementById("editItemQty").min = 1;
+
+    updateEditStockInfo();
+
+    document.getElementById("editItemModal").classList.add("show");
+    strengthSelect.focus();
+}
+
+document.getElementById("editItemStrength")
+    .addEventListener("change", updateEditStockInfo);
+
+document.getElementById("saveEditItem")
+    .addEventListener("click", () => {
+        const entry = cart.find(item => item.cartItemId === editingItemId);
+        if (!entry) return;
+
+        const selectedVariantId =
+            document.getElementById("editItemStrength").value;
+
+        const qtyValue =
+            document.getElementById("editItemQty").value.trim();
+
+        const qty = Number(qtyValue);
+
+        const available = getAvailableStock(
+            entry.productId,
+            selectedVariantId,
+            entry.cartItemId
+        );
+
+        const variant = getVariant(entry.productId, selectedVariantId);
+        const error = document.getElementById("editItemError");
+
+        if (
+            !variant ||
+            qtyValue === "" ||
+            !Number.isInteger(qty) ||
+            qty < 1 ||
+            qty > available
+        ) {
+            error.textContent = variant
+                ? `Enter a quantity from 1 to ${available} for the selected stock strength.`
+                : "Select an available stock strength.";
+
+            error.style.display = "block";
+            return;
+        }
+
+        const existingTargetItem = cart.find(item =>
+            item.cartItemId !== entry.cartItemId &&
+            item.productId === entry.productId &&
+            item.variantId === selectedVariantId
+        );
+
+        if (existingTargetItem) {
+            existingTargetItem.qty += qty;
+            cart = cart.filter(item =>
+                item.cartItemId !== entry.cartItemId
+            );
+        } else {
+            entry.variantId = selectedVariantId;
+            entry.qty = qty;
+        }
+
+        closeEditItem();
+        renderCart();
+        renderProducts();
+    });
+
+function closeEditItem() {
+    document.getElementById("editItemModal").classList.remove("show");
+    editingItemId = null;
+}
+
+document.getElementById("cancelEditItem")
+    .addEventListener("click", closeEditItem);
+
+document.getElementById("editItemModal")
+    .addEventListener("click", event => {
+        if (event.target.id === "editItemModal") {
+            closeEditItem();
+        }
+    });
+
+/* =========================
+   CART AND TOTALS
+========================= */
+
+function renderCart() {
+    orderItems.innerHTML = "";
+
+    if (cart.length === 0) {
+        orderItems.innerHTML =
+            '<p class="empty">No items in this order.</p>';
+    }
+
+    cart.forEach(entry => {
+        const product = getProduct(entry.productId);
+        const variant = getVariant(entry.productId, entry.variantId);
+
+        if (!product || !variant) return;
+
+        const row = document.createElement("div");
+        row.className = "order-item";
+
+        row.innerHTML = `
+            <div>
+                <div class="order-item-heading">
+                    <strong></strong>
+                    <button class="edit-item-button" type="button"
+                        title="Edit quantity or available strength"
+                        aria-label="Edit order item">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 20h9"/>
+                            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/>
+                        </svg>
+                    </button>
+                </div>
+                <small></small>
+            </div>
+            <span class="item-price"></span>
+        `;
+
+        row.querySelector(".order-item-heading strong").textContent =
+            `${product.name} ${variant.strength}`;
+
+        row.querySelector("small").textContent =
+            `QTY ${entry.qty} × ${money(variant.price)}`;
+
+        row.querySelector(".item-price").textContent =
+            money(variant.price * entry.qty);
+
+        row.querySelector(".edit-item-button")
+            .addEventListener("click", () => {
+                openEditItem(entry.cartItemId);
+            });
+
+        orderItems.appendChild(row);
+    });
+
+    const subtotal = cart.reduce((sum, entry) => {
+        const variant = getVariant(entry.productId, entry.variantId);
+        return sum + (variant ? variant.price * entry.qty : 0);
+    }, 0);
+
+    // Static prototype: VAT is not calculated.
+    const vat = 0;
+
+    const discount = subtotal * (discountPercent / 100);
+    const total = Math.max(0, subtotal + vat - discount);
+
+    document.getElementById("patientTypeDisplay").textContent =
+        patientType ? patientType.toUpperCase() : "Not selected";
+
+    document.getElementById("subtotal").textContent = money(subtotal);
+    document.getElementById("vat").textContent = money(vat);
+
+    document.getElementById("discountLabel").textContent = appliedDiscount
+        ? appliedDiscount.name.toUpperCase() + " (" + appliedDiscount.rate + "%)"
+        : "Discount";
+
+    document.getElementById("discount").textContent = money(discount);
+    document.getElementById("total").textContent = money(total);
+
+    document.getElementById("orderCount").textContent =
+        `${cart.reduce((sum, item) => sum + item.qty, 0)} Items`;
+}
+
+/* =========================
+   CATEGORY NAVIGATION
+========================= */
+
+document.querySelectorAll(".category").forEach(button => {
+    button.addEventListener("click", () => {
+        document.querySelector(".category.active")
+            ?.classList.remove("active");
+
+        button.classList.add("active");
+        activeCategory = button.dataset.category;
+
+        renderProducts();
+    });
+});
+
+/* =========================
+   PRODUCT SEARCH
+========================= */
+
+document.getElementById("search")
+    .addEventListener("input", renderProducts);
+
+/* =========================
+   BARCODE DEMONSTRATION
+========================= */
+
+document.getElementById("barcodeButton")
+    .addEventListener("click", () => {
+        document.getElementById("search").focus();
+        alert("Barcode scanning is a demonstration placeholder. Connect a supported barcode scanner in the production system.");
+    });
+
+/* =========================
+   GOVERNMENT DISCOUNTS
+========================= */
+
+// Prototype rates only. Verify applicable legal requirements,
+// eligibility, and VAT treatment before production deployment.
+
+const governmentDiscounts = {
+    senior: {
+        name: "Senior Citizen",
+        rate: 20,
+        idLabel: "Senior Citizen ID Number",
+        placeholder: "Enter Senior Citizen ID number"
+    },
+    pwd: {
+        name: "Person with Disability (PWD)",
+        rate: 20,
+        idLabel: "PWD ID Number",
+        placeholder: "Enter PWD ID number"
+    },
+    solo_parent: {
+        name: "Solo Parent",
+        rate: 10,
+        idLabel: "Solo Parent ID Number",
+        placeholder: "Enter Solo Parent ID number"
+    }
+};
+
+const discountModal = document.getElementById("discountModal");
+const discountTypeInput = document.getElementById("governmentDiscountType");
+const customerNameInput = document.getElementById("customerName");
+const governmentIdInput = document.getElementById("governmentIdNumber");
+const governmentIdLabel = document.getElementById("governmentIdLabel");
+const customerTinInput = document.getElementById("customerTin");
+const discountRateInfo = document.getElementById("discountRateInfo");
+const discountError = document.getElementById("discountError");
+
+function updateDiscountTypeInformation() {
+    const selectedDiscount = governmentDiscounts[discountTypeInput.value];
+
+    discountError.style.display = "none";
+
+    if (!selectedDiscount) {
+        governmentIdLabel.textContent = "Government ID Number";
+        governmentIdInput.placeholder = "Enter government ID number";
+
+        discountRateInfo.textContent =
+            "Select a discount type to view its configured prototype rate.";
+
+        return;
+    }
+
+    governmentIdLabel.textContent = selectedDiscount.idLabel;
+    governmentIdInput.placeholder = selectedDiscount.placeholder;
+
+    discountRateInfo.textContent =
+        selectedDiscount.name + " — " + selectedDiscount.rate +
+        "% prototype discount rate.";
+}
+
+discountTypeInput.addEventListener(
+    "change",
+    updateDiscountTypeInformation
+);
+
+document.getElementById("discountButton")
+    .addEventListener("click", () => {
+        if (cart.length === 0) {
+            alert("Add products to the order before applying a discount.");
+            return;
+        }
+
+        if (appliedDiscount) {
+            discountTypeInput.value = appliedDiscount.type;
+            customerNameInput.value = appliedDiscount.customerName;
+            governmentIdInput.value = appliedDiscount.governmentId;
+            customerTinInput.value = appliedDiscount.tin || "";
+        } else {
+            discountTypeInput.value = "";
+            customerNameInput.value = "";
+            governmentIdInput.value = "";
+            customerTinInput.value = "";
+        }
+
+        updateDiscountTypeInformation();
+
+        discountError.style.display = "none";
+        discountModal.classList.add("show");
+        discountTypeInput.focus();
+    });
+
+document.getElementById("cancelDiscount")
+    .addEventListener("click", () => {
+        discountModal.classList.remove("show");
+    });
+
+document.getElementById("applyDiscount")
+    .addEventListener("click", () => {
+        const type = discountTypeInput.value;
+        const customerName = customerNameInput.value.trim();
+        const governmentId = governmentIdInput.value.trim();
+        const tin = customerTinInput.value.trim();
+
+        const selectedDiscount = governmentDiscounts[type];
+
+        if (!selectedDiscount || !customerName || !governmentId) {
+            discountError.textContent =
+                "Select a discount type and enter the customer's name and government ID number.";
+
+            discountError.style.display = "block";
+            return;
+        }
+
+        appliedDiscount = {
+            type,
+            name: selectedDiscount.name,
+            rate: selectedDiscount.rate,
+            customerName,
+            governmentId,
+            tin
+        };
+
+        discountPercent = selectedDiscount.rate;
+
+        renderCart();
+        discountModal.classList.remove("show");
+    });
+
+discountModal.addEventListener("click", event => {
+    if (event.target === discountModal) {
+        discountModal.classList.remove("show");
+    }
+});
+
+/* =========================
+   PATIENT TYPE
+========================= */
+
+const patientTypeModal = document.getElementById("patientTypeModal");
+const patientTypeSelect = document.getElementById("patientTypeSelect");
+const patientTypeError = document.getElementById("patientTypeError");
+
+document.getElementById("patientTypeButton")
+    .addEventListener("click", () => {
+        patientTypeSelect.value = patientType || "";
+        patientTypeError.style.display = "none";
+
+        patientTypeModal.classList.add("show");
+        patientTypeSelect.focus();
+    });
+
+document.getElementById("cancelPatientType")
+    .addEventListener("click", () => {
+        patientTypeModal.classList.remove("show");
+    });
+
+document.getElementById("applyPatientType")
+    .addEventListener("click", () => {
+        const selectedType = patientTypeSelect.value;
+
+        if (!["outpatient", "inpatient"].includes(selectedType)) {
+            patientTypeError.style.display = "block";
+            return;
+        }
+
+        patientType = selectedType;
+
+        patientTypeModal.classList.remove("show");
+        renderCart();
+    });
+
+patientTypeModal.addEventListener("click", event => {
+    if (event.target === patientTypeModal) {
+        patientTypeModal.classList.remove("show");
+    }
+});
+
+/* =========================
+   CLEAR ORDER
+========================= */
+
+document.getElementById("clearButton")
+    .addEventListener("click", () => {
+        if (cart.length === 0) {
+            alert("There are no items to clear.");
+            return;
+        }
+
+        const confirmed = confirm(
+            "Are you sure you want to clear the current order?"
+        );
+
+        if (!confirmed) return;
+
+        cart = [];
+        discountPercent = 0;
+        appliedDiscount = null;
+        patientType = null;
+
+        renderCart();
+        renderProducts();
+    });
+
+/* =========================
+   PAYMENT DEMONSTRATION
+========================= */
+
+const modal = document.getElementById("paymentModal");
+
+document.getElementById("payButton")
+    .addEventListener("click", () => {
+        const message = document.getElementById("paymentMessage");
+        const confirmButton = document.getElementById("confirmPayment");
+
+        confirmButton.style.display = "inline-block";
+
+        if (cart.length === 0) {
+            message.textContent =
+                "Your order is empty. Add products before proceeding.";
+
+            confirmButton.style.display = "none";
+
+        } else if (!patientType) {
+            message.textContent =
+                "Please select the patient type (Outpatient or Inpatient) before proceeding to payment.";
+
+            confirmButton.style.display = "none";
+
+        } else {
+            message.textContent =
+                "Patient type: " + patientType.toUpperCase() +
+                ". Order total: " +
+                document.getElementById("total").textContent +
+                ". This is a static demo; no payment will be processed.";
+        }
+
+        modal.classList.add("show");
+    });
+
+document.getElementById("cancelPayment")
+    .addEventListener("click", () => {
+        modal.classList.remove("show");
+    });
+
+document.getElementById("confirmPayment")
+    .addEventListener("click", () => {
+        document.getElementById("paymentMessage")
+            .textContent =
+            "Demo only: connect your payment workflow to complete a real transaction.";
+
+        document.getElementById("confirmPayment")
+            .style.display = "none";
+    });
+
+modal.addEventListener("click", event => {
+    if (event.target === modal) {
+        modal.classList.remove("show");
+    }
+});
+
+/* =========================
+   INITIALIZE
+========================= */
+
+renderProducts();
+renderCart();
+
+</script>
+</body>
+</html>

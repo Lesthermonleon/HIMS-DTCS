@@ -75,7 +75,7 @@
                 <h6 class="mb-0 fw-bold d-flex align-items-center gap-2" style="font-family: var(--font-display);">
                     <i class="bi bi-person text-primary"></i>Patient Information
                 </h6>
-                @if($surgeryRequest->patient)
+                @if($surgeryRequest->patient && auth()->user()->canAccessPatients())
                     <a href="{{ route('patients.show', $surgeryRequest->patient_id) }}" class="btn btn-sm btn-outline-primary" style="font-size: 0.8rem;">
                         <i class="bi bi-person-bounding-box me-1"></i>View Full Patient Chart
                     </a>
@@ -139,6 +139,13 @@
                     </div>
 
                     <div class="mb-3 border-top pt-3">
+                        <div class="text-muted small mb-1" style="font-size: 0.72rem; text-transform: uppercase; font-weight: 600;">OR Readiness</div>
+                        <span class="badge bg-{{ ($sch->readiness_status ?? 'Pending Prep') === 'Ready' ? 'success' : (($sch->readiness_status ?? 'Pending Prep') === 'Preparing' ? 'warning text-dark' : 'secondary') }}">
+                            {{ $sch->readiness_status ?? 'Pending Prep' }}
+                        </span>
+                    </div>
+
+                    <div class="mb-3 border-top pt-3">
                         <div class="text-muted small mb-1" style="font-size: 0.72rem; text-transform: uppercase; font-weight: 600;">Surgical Team</div>
                         <div class="fw-semibold">{{ $sch->surgicalTeam->name ?? 'Unassigned' }}</div>
                         <div class="text-muted small">Surgeon: {{ $sch->surgicalTeam->surgeon->name ?? 'N/A' }}</div>
@@ -156,7 +163,7 @@
                         <div class="text-muted small">This surgery request is pending OR schedule assignment.</div>
                     </div>
 
-                    @if($surgeryRequest->status === 'Pending' && auth()->user()->hasRole('or-coordinator'))
+                    @if($surgeryRequest->status === 'Pending' && auth()->user()->hasAnyRole(['or-coordinator', 'admin', 'super_admin']))
                         <a href="{{ route('surgery.schedules.create') }}?request={{ $surgeryRequest->id }}" class="btn btn-primary w-100 fw-semibold d-flex align-items-center justify-content-center gap-2">
                             <i class="bi bi-calendar-plus"></i> Schedule Surgery Now
                         </a>
@@ -169,13 +176,13 @@
         <div class="card shadow-sm border-0" style="border-radius: 0.75rem; background: var(--card);">
             <div class="card-body p-4 d-flex flex-column gap-2">
                 @if($surgeryRequest->status === 'Pending')
-                    @if(auth()->user()->hasRole('doctor'))
+                    @if(auth()->user()->hasRole('doctor') && (int) $surgeryRequest->doctor_id === (int) auth()->id())
                         <a href="{{ route('surgery.requests.edit', $surgeryRequest) }}" class="btn btn-outline-primary w-100 fw-semibold d-flex align-items-center justify-content-center gap-2">
                             <i class="bi bi-pencil"></i> Edit Surgery Request
                         </a>
                     @endif
 
-                    @if(auth()->user()->hasAnyRole(['doctor','or-coordinator']))
+                    @if((auth()->user()->hasRole('doctor') && (int) $surgeryRequest->doctor_id === (int) auth()->id()) || auth()->user()->hasAnyRole(['or-coordinator', 'admin', 'super_admin']))
                         <form action="{{ route('surgery.requests.cancel', $surgeryRequest) }}" method="POST">
                             @csrf
                             @method('PATCH')

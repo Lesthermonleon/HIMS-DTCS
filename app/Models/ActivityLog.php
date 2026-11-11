@@ -36,13 +36,31 @@ class ActivityLog extends Model
 
     // ──────────────────────── Module Category Constants ─────────────────────────
     /** Authentication module events (login, logout, session, lockout) */
-    public const MODULE_AUTH = 'Authentication';
+    public const MODULE_AUTH              = 'Authentication';
+    public const MODULE_SECURITY          = 'Security';
+    public const MODULE_SYSTEM_SETTINGS   = 'System Settings';
+    public const MODULE_MASTER_CATALOG    = 'Master Catalog';
+    public const MODULE_CLINICAL_CODES    = 'Clinical Codes';
+    public const MODULE_INTEGRATIONS      = 'Integrations';
+    public const MODULE_BACKUP            = 'Backup & Maintenance';
+    public const MODULE_AUDIT_VAULT       = 'Audit Vault';
+    public const MODULE_HOSPITAL_SETTINGS = 'Hospital Settings';
 
     /** Clinical modules — counted as Clinical Activity */
     public const CLINICAL_MODULES = ['Patient', 'Laboratory', 'Radiology', 'Pharmacy', 'Surgery', 'Diet'];
 
     /** Administrative modules — counted as System & Admin Audit */
-    public const ADMIN_MODULES = ['User Management', 'System Audit Logs', 'System Administration', 'System'];
+    public const ADMIN_MODULES = [
+        'User Management', 'System Audit Logs', 'System Administration', 'System',
+        'Security', 'System Settings', 'Master Catalog', 'Clinical Codes',
+        'Integrations', 'Backup & Maintenance', 'Audit Vault', 'Hospital Settings'
+    ];
+
+    /** Super-admin-only privileged governance modules */
+    public const SUPER_ADMIN_MODULES = [
+        'Security', 'System Settings', 'Master Catalog', 'Clinical Codes',
+        'Backup & Maintenance', 'Audit Vault'
+    ];
 
     protected $fillable = [
         'user_id',
@@ -58,6 +76,21 @@ class ActivityLog extends Model
     ];
 
     protected $casts = ['logged_at' => 'datetime'];
+
+    /**
+     * Application-level immutability enforcement:
+     * ActivityLog records are strictly append-only.
+     */
+    protected static function booted(): void
+    {
+        static::updating(function () {
+            throw new \RuntimeException('Activity logs are append-only. Modification is strictly prohibited.');
+        });
+
+        static::deleting(function () {
+            throw new \RuntimeException('Activity logs are append-only. Deletion is strictly prohibited.');
+        });
+    }
 
     public function user(): BelongsTo { return $this->belongsTo(User::class); }
 

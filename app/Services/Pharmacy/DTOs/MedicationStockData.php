@@ -13,7 +13,17 @@ class MedicationStockData
         public string $lotNumber,
         public string $expiryDate,
         public bool $isAvailable = true,
-        public ?string $errorMessage = null
+        public ?string $errorMessage = null,
+        public string $code = '',
+        public string $genericName = '',
+        public string $brandName = '',
+        public string $category = 'Default',
+        public string $strength = '',
+        public string $dosageForm = 'Tablet',
+        public string $unit = 'unit',
+        public float $unitPrice = 15.00,
+        public int $reorderLevel = 20,
+        public string $barcode = ''
     ) {}
 
     /**
@@ -42,7 +52,17 @@ class MedicationStockData
     public function toArray(): array
     {
         return [
+            'code'               => $this->code,
             'medication_name'    => $this->medicationName,
+            'generic_name'       => $this->genericName,
+            'brand_name'         => $this->brandName,
+            'category'           => $this->category,
+            'strength'           => $this->strength,
+            'dosage_form'        => $this->dosageForm,
+            'unit'               => $this->unit,
+            'unit_price'         => $this->unitPrice,
+            'reorder_level'      => $this->reorderLevel,
+            'barcode'            => $this->barcode,
             'available_quantity' => $this->availableQuantity,
             'lot_number'         => $this->lotNumber,
             'expiry_date'        => $this->expiryDate,

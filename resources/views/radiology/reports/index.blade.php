@@ -9,7 +9,7 @@
 <div class="card">
     <div class="card-header d-flex flex-wrap gap-2 align-items-center justify-content-between">
         <h6 class="mb-0 fw-semibold text-secondary"><i class="bi bi-file-earmark-medical me-2"></i>Diagnostic Reports Archive</h6>
-        @if(auth()->user()?->hasRole('radiologist'))
+        @if(auth()->user()?->hasRole('radiologist') || (auth()->user()?->hasRole('rad-tech') && auth()->user()->hasPermission('ris.reports.prepare')))
             <a href="{{ route('radiology.reports.create') }}" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle me-1"></i>New Draft Report</a>
         @endif
     </div>
@@ -61,7 +61,7 @@
                             <td class="text-end">
                                 <div class="table-actions justify-content-end">
                                     <a href="{{ route('radiology.reports.show', $rpt) }}" class="table-action-btn action-view" title="View Diagnostic Report" aria-label="View Diagnostic Report"><i class="bi bi-eye"></i></a>
-                                    @if($rpt->status !== 'Released' && auth()->user()?->hasRole('radiologist'))
+                                    @if($rpt->status === 'Draft' && (auth()->user()?->hasRole('radiologist') || (auth()->user()?->hasRole('rad-tech') && auth()->user()->hasPermission('ris.reports.prepare'))))
                                         <a href="{{ route('radiology.reports.edit', $rpt) }}" class="table-action-btn action-edit" title="Edit Diagnostic Report" aria-label="Edit Diagnostic Report"><i class="bi bi-pencil"></i></a>
                                     @endif
                                     @if($rpt->status === 'Draft' && auth()->user()?->hasRole('radiologist'))

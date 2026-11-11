@@ -83,12 +83,12 @@
                     </form>
                 @endif
 
-                {{-- Radiologist Diagnostic Reporting Actions --}}
-                @if(in_array($radiologyRequest->status, ['Completed', 'In Progress']) && auth()->user()->hasRole('radiologist') && !$radiologyRequest->report)
-                    <a href="{{ route('radiology.reports.create') }}?radiology_request_id={{ $radiologyRequest->id }}" class="btn btn-primary w-100"><i class="bi bi-journal-medical me-2"></i>Create Diagnostic Report</a>
+                {{-- Radiologist / Staff Diagnostic Reporting Actions --}}
+                @if(in_array($radiologyRequest->status, ['Completed', 'In Progress']) && (auth()->user()->hasRole('radiologist') || (auth()->user()->hasRole('rad-tech') && auth()->user()->hasPermission('ris.reports.prepare'))) && !$radiologyRequest->report)
+                    <a href="{{ route('radiology.reports.create') }}?radiology_request_id={{ $radiologyRequest->id }}" class="btn btn-primary w-100"><i class="bi bi-journal-medical me-2"></i>Prepare Diagnostic Report</a>
                 @endif
 
-                @if($radiologyRequest->report)
+                @if($radiologyRequest->report && auth()->user()->can('view', $radiologyRequest->report))
                     <a href="{{ route('radiology.reports.show', $radiologyRequest->report) }}" class="btn btn-success w-100"><i class="bi bi-file-earmark-medical me-2"></i>View Diagnostic Report</a>
                 @endif
 

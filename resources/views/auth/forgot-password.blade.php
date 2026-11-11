@@ -18,7 +18,6 @@
         background: #ffffff;
         color: #0f172a;
         border: 1px solid rgba(20, 199, 154, 0.35);
-        border-left: 4px solid var(--signal-dark, #14C79A);
         border-radius: 0.65rem;
         padding: 0.85rem 1rem;
         box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 4px 10px -2px rgba(0, 0, 0, 0.1);

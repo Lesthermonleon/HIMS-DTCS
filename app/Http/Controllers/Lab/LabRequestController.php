@@ -62,7 +62,7 @@ class LabRequestController extends Controller
     {
         /** @var User|null $user */
         $user = Auth::user();
-        abort_if(! $user?->hasRole('doctor'), 403, 'Only physicians can create laboratory requests.');
+        abort_if(! ($user?->hasRole('doctor') || $user?->hasPermission('lis.requests.create')), 403, 'Only authorized physicians can create laboratory requests.');
 
         $patients  = Patient::orderBy('last_name')->get(['id', 'patient_no', 'first_name', 'last_name']);
         $labTests  = LabTest::with('category')->where('is_active', true)->orderBy('name')->get();
@@ -74,7 +74,7 @@ class LabRequestController extends Controller
     {
         /** @var User|null $user */
         $user = Auth::user();
-        abort_if(! $user?->hasRole('doctor'), 403, 'Only physicians can create laboratory requests.');
+        abort_if(! ($user?->hasRole('doctor') || $user?->hasPermission('lis.requests.create')), 403, 'Only authorized physicians can create laboratory requests.');
 
         $count = LabRequest::count() + 1;
 
@@ -133,6 +133,12 @@ class LabRequestController extends Controller
 
     public function show(LabRequest $labRequest): View
     {
+        /** @var User|null $user */
+        $user = Auth::user();
+        if ($user && $user->hasRole('doctor') && ! $user->hasAnyRole(['admin', 'super_admin'])) {
+            abort_if($labRequest->doctor_id !== $user->id, 403, 'Unauthorized access to another physician\'s laboratory request.');
+        }
+
         $labRequest->load('patient', 'doctor', 'items.labTest.category', 'items.result.technologist');
 
         return view('lab.requests.show', compact('labRequest'));
@@ -221,19 +227,28 @@ class LabRequestController extends Controller
                          ->with('success', 'Lab request cancelled.');
     }
 
-    /** Medical Technologist marks request as received. */
-    public function receive(LabRequest $labRequest): RedirectResponse
+    /** Medical Technologist marks request as received and specimen processed. */
+    public function receive(Request $request, LabRequest $labRequest): RedirectResponse
     {
         /** @var User|null $user */
         $user = Auth::user();
-        abort_if(! $user?->hasRole('med-tech'), 403, 'Only medical technologists can receive laboratory specimens.');
+        abort_if(! ($user?->hasRole('med-tech') && $user?->hasPermission('lis.specimens.process')), 403, 'Only authorized laboratory personnel can process specimens.');
         abort_if($labRequest->status !== 'Pending', 400, 'Only pending laboratory requests can be marked as received.');
 
-        DB::transaction(function () use ($labRequest) {
-            $labRequest->update([
+        $specimenNotes = $request->input('specimen_notes');
+
+        DB::transaction(function () use ($labRequest, $specimenNotes, $user) {
+            $updateData = [
                 'status'      => 'In Progress',
                 'received_at' => now(),
-            ]);
+            ];
+
+            if ($specimenNotes) {
+                $existing = $labRequest->clinical_notes ? $labRequest->clinical_notes . "\n" : '';
+                $updateData['clinical_notes'] = $existing . "[Specimen Received Note by {$user->name}: " . trim($specimenNotes) . "]";
+            }
+
+            $labRequest->update($updateData);
 
             $labRequest->items()
                 ->where('status', 'Pending')
@@ -252,6 +267,46 @@ class LabRequestController extends Controller
         ]);
 
         return back()->with('success', "Request {$labRequest->request_no} marked as received.");
+    }
+
+    /** Medical Technologist records specimen rejection and its reason. */
+    public function reject(Request $request, LabRequest $labRequest): RedirectResponse
+    {
+        /** @var User|null $user */
+        $user = Auth::user();
+        abort_if(! ($user?->hasRole('med-tech') && $user?->hasPermission('lis.specimens.process')), 403, 'Only authorized laboratory personnel can reject specimens.');
+        abort_if(in_array($labRequest->status, ['Completed', 'Cancelled']), 400, 'Completed or cancelled laboratory requests cannot be rejected.');
+
+        $validated = $request->validate([
+            'rejection_reason' => ['required', 'string', 'max:500'],
+        ]);
+
+        $reason = trim($validated['rejection_reason']);
+
+        DB::transaction(function () use ($labRequest, $reason, $user) {
+            $existing = $labRequest->clinical_notes ? $labRequest->clinical_notes . "\n" : '';
+            $labRequest->update([
+                'status'         => 'Cancelled',
+                'clinical_notes' => $existing . "[Specimen Rejected by {$user->name}: {$reason}]",
+            ]);
+
+            $labRequest->items()->update(['status' => 'Cancelled']);
+        });
+
+        ActivityLog::create([
+            'user_id'       => Auth::id(),
+            'action'        => 'Lab Specimen Rejected',
+            'module'        => 'Laboratory',
+            'severity'      => ActivityLog::SEVERITY_WARNING,
+            'result'        => ActivityLog::RESULT_SUCCESS,
+            'description'   => "Specimen for lab request [{$labRequest->request_no}] was rejected. Reason: {$reason}",
+            'loggable_type' => LabRequest::class,
+            'loggable_id'   => $labRequest->id,
+            'ip_address'    => request()->ip(),
+            'logged_at'     => now(),
+        ]);
+
+        return back()->with('success', "Specimen for request {$labRequest->request_no} has been rejected.");
     }
 
     /** Print-friendly view for lab request report. */

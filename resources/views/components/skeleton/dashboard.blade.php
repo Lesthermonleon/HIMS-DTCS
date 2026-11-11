@@ -17,7 +17,7 @@
     <div class="row g-3 mb-4">
         @for ($i = 0; $i < 6; $i++)
         <div class="col-sm-6 col-xl-2">
-            <div class="card border-0 shadow-sm h-100 p-3" style="border-radius: .75rem; border-left: 3px solid var(--signal) !important;">
+            <div class="card border-0 shadow-sm h-100 p-3" style="border-radius: .75rem;">
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <div class="sk sk-xs" style="width:70px;border-radius:4px;"></div>
                     <div class="sk sk-circle" style="width:32px;height:32px;"></div>

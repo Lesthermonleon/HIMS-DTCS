@@ -158,11 +158,12 @@ class ArchivedUserProfileTest extends TestCase
         $response = $this->actingAs($admin)->get($this->profileUrl($target));
 
         $response->assertStatus(200);
-        // Must show the unavailability message, not null/undefined
+        // Must show the unavailability message, not null/undefined in the rendered document
         $response->assertSee('Deletion reason unavailable');
-        // Must NOT contain fabricated data
-        $response->assertDontSee('null');
-        $response->assertDontSee('undefined');
+        // Must NOT contain fabricated data in rendered content
+        $htmlWithoutScripts = preg_replace('#<script(.*?)>(.*?)</script>#is', '', $response->getContent());
+        $this->assertStringNotContainsString('null', $htmlWithoutScripts);
+        $this->assertStringNotContainsString('undefined', $htmlWithoutScripts);
     }
 
     // ──────────────────────────────────────────────────────────────────────────

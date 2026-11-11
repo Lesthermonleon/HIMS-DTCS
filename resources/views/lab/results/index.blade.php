@@ -15,7 +15,7 @@
             </select>
             <button class="btn btn-primary btn-sm d-none">Filter</button>
         </form>
-        @if(auth()->user()?->hasRole('med-tech'))
+        @if(auth()->user()?->hasRole('med-tech') && auth()->user()->hasPermission('lis.results.enter'))
             <a href="{{ route('lab.results.create') }}" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle me-1"></i>Encode Result</a>
         @endif
     </div>
@@ -36,12 +36,12 @@
                     <td>
                         <div class="table-actions">
                             <a href="{{ route('lab.results.show', $result) }}" class="table-action-btn action-view" title="View Result Details" aria-label="View Result Details"><i class="bi bi-eye"></i></a>
-                            @if($result->status==='Encoded')
+                            @if($result->status==='Encoded' && auth()->user()?->hasRole('med-tech') && auth()->user()->hasPermission('lis.results.verify'))
                                 <form method="POST" action="{{ route('lab.results.validate', $result) }}" class="d-inline">
                                     @csrf @method('PATCH')
                                     <button type="submit" class="table-action-btn action-info" title="Validate Result" aria-label="Validate Result"><i class="bi bi-check-circle"></i></button>
                                 </form>
-                            @elseif($result->status==='Validated')
+                            @elseif($result->status==='Validated' && auth()->user()?->hasRole('med-tech') && auth()->user()->hasPermission('lis.results.release'))
                                 <form method="POST" action="{{ route('lab.results.release', $result) }}" class="d-inline">
                                     @csrf @method('PATCH')
                                     <button type="submit" class="table-action-btn action-success" title="Release Result" aria-label="Release Result"><i class="bi bi-send-check"></i></button>

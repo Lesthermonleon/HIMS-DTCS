@@ -2,7 +2,8 @@
 @section('title', 'Diet Request Details')
 @section('page-title', 'Diet Request: ' . $dietRequest->request_no)
 @section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{ route('diet.requests.index') }}">Requests</a></li>
+    <li class="breadcrumb-item"><a href="{{ route('diet.dashboard') }}">DNMS</a></li>
+    <li class="breadcrumb-item"><a href="{{ route('diet.plans.index') }}">Diet Plans</a></li>
     <li class="breadcrumb-item active">{{ $dietRequest->request_no }}</li>
 @endsection
 @section('content')
@@ -77,15 +78,15 @@
                             <div class="fw-bold mt-1 text-success">{{ $dietRequest->dietPlan->total_calories ?? 'Not specified' }} kcal</div>
                         </div>
                         <div class="col-sm-3">
-                            <span class="text-muted small">Dietitian:</span>
-                            <div class="fw-semibold mt-1">{{ $dietRequest->dietPlan->dietitian->name }}</div>
+                            <span class="text-muted small">Created By:</span>
+                            <div class="fw-semibold mt-1">{{ $dietRequest->dietPlan->createdBy->name ?? ($dietRequest->dietPlan->dietitian->name ?? $dietRequest->doctor->name) }}</div>
                         </div>
                     </div>
                     <a href="{{ route('diet.plans.show', $dietRequest->dietPlan) }}" class="btn btn-sm btn-success"><i class="bi bi-box-arrow-in-right me-1"></i>Open Full Diet Plan</a>
                 </div>
             </div>
         @else
-            @if(auth()->user()->hasRole('dietitian') && $dietRequest->status === 'Pending')
+            @if($dietRequest->status === 'Pending' && auth()->user()->can('create', [\App\Models\DietPlan::class, $dietRequest]))
                 <div class="alert alert-info d-flex align-items-center justify-content-between mb-0">
                     <div>
                         <i class="bi bi-info-circle-fill me-2 fs-5"></i>
@@ -112,7 +113,7 @@
                 <div class="row g-2 small">
                     <div class="col-6">
                         <span class="text-muted d-block">Age / Sex:</span>
-                        <span class="fw-semibold">{{ $dietRequest->patient->age }} / {{ $dietRequest->patient->sex }}</span>
+                        <span class="fw-semibold">{{ $dietRequest->patient->date_of_birth ? $dietRequest->patient->date_of_birth->age : '—' }} / {{ ucfirst($dietRequest->patient->gender ?? '—') }}</span>
                     </div>
                     <div class="col-6">
                         <span class="text-muted d-block">Blood Type:</span>
@@ -133,15 +134,17 @@
             <div class="card-header"><i class="bi bi-gear me-2"></i>Available Actions</div>
             <div class="card-body d-flex flex-column gap-2">
                 @if($dietRequest->status === 'Pending')
-                    @if(auth()->user()->hasRole('doctor'))
+                    @can('update', $dietRequest)
                         <a href="{{ route('diet.requests.edit', $dietRequest) }}" class="btn btn-warning w-100 text-start"><i class="bi bi-pencil me-2"></i>Edit Request details</a>
+                    @endcan
+                    @can('delete', $dietRequest)
                         <form method="POST" action="{{ route('diet.requests.destroy', $dietRequest) }}" onsubmit="return confirm('Cancel this diet request?');">
                             @csrf @method('DELETE')
                             <button type="submit" class="btn btn-outline-danger w-100 text-start"><i class="bi bi-x-circle me-2"></i>Cancel/Revoke Request</button>
                         </form>
-                    @endif
+                    @endcan
                 @endif
-                <a href="{{ route('diet.requests.index') }}" class="btn btn-outline-secondary w-100 text-start"><i class="bi bi-chevron-left me-2"></i>Back to Requests</a>
+                <a href="{{ route('diet.plans.index') }}" class="btn btn-outline-secondary w-100 text-start"><i class="bi bi-chevron-left me-2"></i>Back to Diet Plans</a>
             </div>
         </div>
     </div>

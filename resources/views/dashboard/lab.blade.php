@@ -24,39 +24,39 @@
     </div>
 </div>
 
-{{-- ── Stat Cards (Admin & Doctor Style) ── --}}
-<div class="balanced-grid balanced-grid-4 mb-4">
-    {{-- Card 1: Total Requests --}}
-    <a href="{{ route('lab.requests.index') }}" class="text-decoration-none">
+{{-- ── Stat Cards (6 Operational KPIs) ── --}}
+<div class="balanced-grid balanced-grid-6 mb-4">
+    {{-- Card 1: Pending Lab Requests --}}
+    <a href="{{ route('lab.requests.index', ['status' => 'Pending']) }}" class="text-decoration-none">
         <div class="card border-0 shadow-sm h-100 card-hover-elevate transition-all">
             <div class="card-body p-3">
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="text-muted small fw-semibold text-uppercase">Total Requests</span>
-                    <div class="bg-primary bg-opacity-10 text-primary rounded-circle p-2">
-                        <i class="bi bi-clipboard2-pulse-fill fs-5"></i>
+                    <span class="text-muted small fw-semibold text-uppercase">Pending Lab Requests</span>
+                    <div class="bg-warning bg-opacity-10 text-warning rounded-circle p-2">
+                        <i class="bi bi-hourglass-split fs-5"></i>
                     </div>
                 </div>
-                <h3 class="fw-bold text-dark mb-0">{{ number_format($stats['total_requests']) }}</h3>
-                <div class="small text-primary mt-2">
-                    View Requests <i class="bi bi-arrow-right"></i>
+                <h3 class="fw-bold text-dark mb-0">{{ number_format($stats['pending_requests'] ?? $stats['pending']) }}</h3>
+                <div class="small text-warning mt-2">
+                    Awaiting Specimen <i class="bi bi-arrow-right"></i>
                 </div>
             </div>
         </div>
     </a>
 
-    {{-- Card 2: Pending Requests --}}
-    <a href="{{ route('lab.requests.index', ['status' => 'Pending']) }}" class="text-decoration-none">
+    {{-- Card 2: Specimens Received --}}
+    <a href="{{ route('lab.requests.index', ['status' => 'Specimen Received']) }}" class="text-decoration-none">
         <div class="card border-0 shadow-sm h-100 card-hover-elevate transition-all">
             <div class="card-body p-3">
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="text-muted small fw-semibold text-uppercase">Pending Queue</span>
-                    <div class="bg-warning bg-opacity-10 text-warning rounded-circle p-2">
-                        <i class="bi bi-hourglass-split fs-5"></i>
+                    <span class="text-muted small fw-semibold text-uppercase">Specimens Received</span>
+                    <div class="bg-primary bg-opacity-10 text-primary rounded-circle p-2">
+                        <i class="bi bi-inbox-fill fs-5"></i>
                     </div>
                 </div>
-                <h3 class="fw-bold text-dark mb-0">{{ number_format($stats['pending']) }}</h3>
-                <div class="small text-warning mt-2">
-                    Process Pending <i class="bi bi-arrow-right"></i>
+                <h3 class="fw-bold text-dark mb-0">{{ number_format($stats['specimen_received'] ?? 0) }}</h3>
+                <div class="small text-primary mt-2">
+                    Ready for Testing <i class="bi bi-arrow-right"></i>
                 </div>
             </div>
         </div>
@@ -74,25 +74,61 @@
                 </div>
                 <h3 class="fw-bold text-dark mb-0">{{ number_format($stats['in_progress']) }}</h3>
                 <div class="small text-info mt-2">
-                    Active Tests <i class="bi bi-arrow-right"></i>
+                    Active Analysis <i class="bi bi-arrow-right"></i>
                 </div>
             </div>
         </div>
     </a>
 
-    {{-- Card 4: STAT Priority --}}
-    <a href="{{ route('lab.requests.index', ['priority' => 'STAT']) }}" class="text-decoration-none">
+    {{-- Card 4: Results Awaiting Validation --}}
+    <a href="{{ route('lab.results.index', ['status' => 'Draft']) }}" class="text-decoration-none">
         <div class="card border-0 shadow-sm h-100 card-hover-elevate transition-all">
             <div class="card-body p-3">
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="text-muted small fw-semibold text-uppercase">STAT Priority</span>
-                    <div class="bg-danger bg-opacity-10 text-danger rounded-circle p-2">
-                        <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+                    <span class="text-muted small fw-semibold text-uppercase">Results Awaiting Validation</span>
+                    <div class="bg-secondary bg-opacity-10 text-secondary rounded-circle p-2">
+                        <i class="bi bi-file-earmark-check fs-5"></i>
                     </div>
                 </div>
-                <h3 class="fw-bold text-dark mb-0">{{ number_format($stats['stat_count']) }}</h3>
+                <h3 class="fw-bold text-dark mb-0">{{ number_format($stats['results_pending'] ?? 0) }}</h3>
+                <div class="small text-secondary mt-2">
+                    Validate Drafts <i class="bi bi-arrow-right"></i>
+                </div>
+            </div>
+        </div>
+    </a>
+
+    {{-- Card 5: Results Awaiting Release --}}
+    <a href="{{ route('lab.results.index', ['status' => 'Validated']) }}" class="text-decoration-none">
+        <div class="card border-0 shadow-sm h-100 card-hover-elevate transition-all">
+            <div class="card-body p-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-muted small fw-semibold text-uppercase">Results Awaiting Release</span>
+                    <div class="bg-danger bg-opacity-10 text-danger rounded-circle p-2">
+                        <i class="bi bi-send-check-fill fs-5"></i>
+                    </div>
+                </div>
+                <h3 class="fw-bold text-dark mb-0">{{ number_format($stats['results_awaiting_release'] ?? $stats['pending_release'] ?? 0) }}</h3>
                 <div class="small text-danger mt-2">
-                    Urgent Attention <i class="bi bi-arrow-right"></i>
+                    Authorize Release <i class="bi bi-arrow-right"></i>
+                </div>
+            </div>
+        </div>
+    </a>
+
+    {{-- Card 6: Completed Tests --}}
+    <a href="{{ route('lab.requests.index', ['status' => 'Completed']) }}" class="text-decoration-none">
+        <div class="card border-0 shadow-sm h-100 card-hover-elevate transition-all">
+            <div class="card-body p-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-muted small fw-semibold text-uppercase">Completed Tests</span>
+                    <div class="bg-success bg-opacity-10 text-success rounded-circle p-2">
+                        <i class="bi bi-check2-circle fs-5"></i>
+                    </div>
+                </div>
+                <h3 class="fw-bold text-dark mb-0">{{ number_format($stats['completed_tests'] ?? $stats['completed']) }}</h3>
+                <div class="small text-success mt-2">
+                    {{ number_format($stats['completed_today'] ?? 0) }} Today <i class="bi bi-arrow-right"></i>
                 </div>
             </div>
         </div>
@@ -131,7 +167,7 @@
                         </td>
                         <td>
                             <div class="fw-semibold">{{ $req->patient->last_name }}, {{ $req->patient->first_name }}</div>
-                            <span class="text-muted small">MRN: {{ $req->patient->patient_mrn ?? 'N/A' }}</span>
+                            <span class="text-muted small">Patient No: {{ $req->patient->patient_no ?? 'N/A' }}</span>
                         </td>
                         <td>{{ $req->doctor->name ?? 'Dr. Staff' }}</td>
                         <td>
@@ -251,9 +287,9 @@
     {"pending": {{ $stats['pending'] }}, "in_progress": {{ $stats['in_progress'] }}, "completed": {{ $stats['completed'] }}}
 </script>
 
-{{-- ── Lab Analytics: Workload Trend + Priority Breakdown ── --}}
+{{-- ── Lab Analytics: Workload Trend + Daily/Weekly Test Trends + Priority Breakdown ── --}}
 <div class="row g-4 mb-4">
-    <div class="col-lg-8">
+    <div class="col-lg-5">
         <div class="chart-card h-100">
             <div class="chart-header">
                 <div>
@@ -274,8 +310,21 @@
         <div class="chart-card h-100">
             <div class="chart-header">
                 <div>
+                    <h3 class="chart-title"><i class="bi bi-bar-chart-steps me-2 text-primary"></i>Daily/Weekly Test Trends</h3>
+                    <p class="chart-subtitle">7-day received vs. completed specimens</p>
+                </div>
+            </div>
+            <div class="chart-container" style="height: 260px;">
+                <canvas id="labDailyTrendChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3">
+        <div class="chart-card h-100">
+            <div class="chart-header">
+                <div>
                     <h3 class="chart-title"><i class="bi bi-pie-chart-fill me-2 text-success"></i>Request Priority</h3>
-                    <p class="chart-subtitle">Routine, Urgent &amp; STAT lab requests</p>
+                    <p class="chart-subtitle">Routine, Urgent &amp; STAT</p>
                 </div>
             </div>
             <div class="chart-container" style="height: 260px;">
@@ -284,8 +333,87 @@
         </div>
     </div>
 </div>
+
+{{-- ── Actionable Queues: Urgent Requests, Results Requiring Validation & Recent Activities ── --}}
+<div class="row g-4 mb-4">
+    {{-- Urgent Laboratory Requests --}}
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Urgent Laboratory Requests</h6>
+                <span class="badge bg-danger-subtle text-danger">{{ ($urgentLabRequests ?? collect())->count() }}</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    @forelse($urgentLabRequests ?? [] as $ureq)
+                        <div class="list-group-item p-3 border-bottom d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fw-bold text-dark small">{{ $ureq->request_no }} &bull; {{ $ureq->patient->full_name ?? 'Patient' }}</div>
+                                <div class="small text-muted">{{ $ureq->priority }} &bull; {{ $ureq->status }}</div>
+                            </div>
+                            <a href="{{ route('lab.requests.show', $ureq) }}" class="btn btn-sm btn-outline-danger py-0 px-2">Open</a>
+                        </div>
+                    @empty
+                        <div class="text-center py-4 text-muted small">No urgent or STAT lab requests pending.</div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Results Requiring Validation --}}
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-file-earmark-check me-2 text-warning"></i>Results Requiring Validation</h6>
+                <a href="{{ route('lab.results.index') }}" class="btn btn-sm btn-outline-secondary py-0">View All</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    @forelse($resultsRequiringValidation ?? [] as $resVal)
+                        <div class="list-group-item p-3 border-bottom d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fw-bold text-dark small">{{ $resVal->requestItem?->labRequest?->patient?->full_name ?? 'Patient' }}</div>
+                                <div class="small text-muted">{{ $resVal->requestItem?->test_name ?? 'Test' }} &bull; <span class="badge bg-light text-dark border">{{ $resVal->status }}</span></div>
+                            </div>
+                            <a href="{{ route('lab.results.show', $resVal) }}" class="btn btn-sm btn-outline-primary py-0 px-2">Validate</a>
+                        </div>
+                    @empty
+                        <div class="text-center py-4 text-muted small">No laboratory results awaiting validation or release.</div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Recent Laboratory Activities --}}
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3">
+                <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-clock-history me-2 text-info"></i>Recent Laboratory Activities</h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    @forelse($recentLabActivities ?? [] as $log)
+                        <div class="list-group-item p-3 border-bottom">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <span class="fw-semibold text-dark small">{{ $log->action }}</span>
+                                <span class="small text-muted" style="font-size: 0.72rem;">{{ $log->logged_at?->diffForHumans() }}</span>
+                            </div>
+                            <div class="small text-muted">{{ Str::limit($log->description, 65) }}</div>
+                        </div>
+                    @empty
+                        <div class="text-center py-4 text-muted small">No recent laboratory activities logged.</div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script type="application/json" id="lab-trend-6m">@json($labTrend6m)</script>
 <script type="application/json" id="lab-trend-12m">@json($labTrend12m)</script>
+<script type="application/json" id="lab-daily-trend-7d">@json($labDailyTrend7d ?? [])</script>
 <script type="application/json" id="lab-priority-data">@json($labPriority)</script>
 
 @endsection
@@ -356,6 +484,40 @@
             priority.map(p => p.count),
             { 'Routine': '#E0E0E0', 'Urgent': '#F57C00', 'STAT': '#D32F2F' }
         );
+    }
+
+    const dailyElem = document.getElementById('lab-daily-trend-7d');
+    const dailyCtx  = document.getElementById('labDailyTrendChart');
+    if (dailyElem && dailyCtx && typeof Chart !== 'undefined') {
+        const dailyData = JSON.parse(dailyElem.textContent || '[]');
+        if (dailyData.length > 0) {
+            new Chart(dailyCtx, {
+                type: 'bar',
+                data: {
+                    labels: dailyData.map(d => d.label),
+                    datasets: [
+                        {
+                            label: 'Received',
+                            data: dailyData.map(d => d.received ?? 0),
+                            backgroundColor: 'rgba(14, 165, 233, 0.85)',
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Completed',
+                            data: dailyData.map(d => d.completed ?? 0),
+                            backgroundColor: 'rgba(16, 185, 129, 0.85)',
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } },
+                    scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+                }
+            });
+        }
     }
 })();
 </script>

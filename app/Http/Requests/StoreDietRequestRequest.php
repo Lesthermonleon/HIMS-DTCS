@@ -6,7 +6,11 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class StoreDietRequestRequest extends FormRequest
 {
-    public function authorize(): bool { return true; }
+    /** Only physicians may originate or modify therapeutic diet orders (ownership enforced by policy). */
+    public function authorize(): bool
+    {
+        return (bool) $this->user()?->hasRole('doctor');
+    }
 
     public function rules(): array
     {

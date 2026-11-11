@@ -11,23 +11,26 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 /**
  * DietRequestController — doctors request therapeutic diets for patients.
+ *
+ * Authorization: every action is gated by DietRequestPolicy (ownership + status), not just route middleware.
  */
 class DietRequestController extends Controller
 {
+    private const DIET_TYPES = ['Diabetic', 'Low-Sodium', 'Renal', 'Cardiac', 'High-Protein', 'Low-Fat', 'Liquid', 'Soft', 'Regular'];
+
     public function index(Request $request): View
     {
-        $query = DietRequest::with('patient', 'doctor', 'dietPlan');
+        $this->authorize('viewAny', DietRequest::class);
 
-        /** @var User|null $user */
+        /** @var User $user */
         $user = Auth::user();
 
-        if ($user?->hasRole('doctor')) {
-            $query->where('doctor_id', Auth::id());
-        }
+        $query = DietRequest::visibleTo($user)->with('patient', 'doctor', 'dietPlan');
 
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
@@ -40,53 +43,42 @@ class DietRequestController extends Controller
         if ($s = $request->input('status')) { $query->where('status', $s); }
 
         $dietRequests = $query->latest()->paginate(15)->withQueryString();
-        $statuses = ['Pending', 'Active', 'Completed', 'Cancelled'];
+        $statuses = DietRequest::STATUSES;
 
         return view('diet.requests.index', compact('dietRequests', 'statuses'));
     }
 
     public function create(): View
     {
-        // Only Doctors may originate therapeutic diet requests
-        /** @var User|null $user */
-        $user = Auth::user();
-        abort_if(! $user?->hasRole('doctor'), 403, 'Only physicians can create diet requests.');
+        $this->authorize('create', DietRequest::class);
 
-        $patients  = Patient::orderBy('last_name')->get(['id', 'patient_no', 'first_name', 'last_name']);
-        $dietTypes = ['Diabetic', 'Low-Sodium', 'Renal', 'Cardiac', 'High-Protein', 'Low-Fat', 'Liquid', 'Soft', 'Regular'];
+        /** @var User $user */
+        $user = Auth::user();
+
+        $patients  = Patient::authorizedForDoctor($user)->orderBy('last_name')->get(['id', 'patient_no', 'first_name', 'last_name']);
+        $dietTypes = self::DIET_TYPES;
 
         return view('diet.requests.create', compact('patients', 'dietTypes'));
     }
 
     public function store(StoreDietRequestRequest $request): RedirectResponse
     {
-        // Only Doctors may originate therapeutic diet requests
-        /** @var User|null $user */
+        /** @var User $user */
         $user = Auth::user();
-        abort_if(! $user?->hasRole('doctor'), 403, 'Only physicians can create diet requests.');
 
-        $count = DietRequest::count() + 1;
+        $patient = Patient::findOrFail($request->validated('patient_id'));
+        $this->authorize('create', [DietRequest::class, $patient]);
 
-        DietRequest::create(array_merge($request->validated(), [
-            'request_no'   => 'DR-' . date('Y') . '-' . str_pad($count, 4, '0', STR_PAD_LEFT),
-            'doctor_id'    => Auth::id(),
-            'status'       => 'Pending',
-            'requested_at' => now(),
-        ]));
+        $dietRequest = DB::transaction(function () use ($request, $user) {
+            return DietRequest::create(array_merge($request->validated(), [
+                'request_no'   => $this->nextRequestNo(),
+                'doctor_id'    => $user->id,
+                'status'       => 'Pending',
+                'requested_at' => now(),
+            ]));
+        });
 
-        $latest = DietRequest::where('doctor_id', Auth::id())->latest()->first();
-        if ($latest) {
-            ActivityLog::create([
-                'user_id'       => Auth::id(),
-                'action'        => 'Diet Request Created',
-                'module'        => 'Diet & Nutrition',
-                'description'   => "Diet request [{$latest->request_no}] ({$latest->diet_type}) was submitted.",
-                'loggable_type' => DietRequest::class,
-                'loggable_id'   => $latest->id,
-                'ip_address'    => request()->ip(),
-                'logged_at'     => now(),
-            ]);
-        }
+        $this->log('Diet Request Created', "Diet request [{$dietRequest->request_no}] ({$dietRequest->diet_type}) was submitted.", $dietRequest);
 
         return redirect()->route('diet.requests.index')
                          ->with('success', 'Diet request submitted successfully.');
@@ -94,6 +86,8 @@ class DietRequestController extends Controller
 
     public function show(DietRequest $dietRequest): View
     {
+        $this->authorize('view', $dietRequest);
+
         $dietRequest->load('patient', 'doctor', 'dietPlan.dietitian', 'dietPlan.mealSchedules');
 
         return view('diet.requests.show', compact('dietRequest'));
@@ -101,28 +95,27 @@ class DietRequestController extends Controller
 
     public function edit(DietRequest $dietRequest): View
     {
-        abort_if($dietRequest->status !== 'Pending', 403, 'Only pending requests can be edited.');
-        $patients  = Patient::orderBy('last_name')->get(['id', 'patient_no', 'first_name', 'last_name']);
-        $dietTypes = ['Diabetic', 'Low-Sodium', 'Renal', 'Cardiac', 'High-Protein', 'Low-Fat', 'Liquid', 'Soft', 'Regular'];
+        $this->authorize('update', $dietRequest);
+
+        /** @var User $user */
+        $user = Auth::user();
+
+        $patients  = Patient::authorizedForDoctor($user)->orderBy('last_name')->get(['id', 'patient_no', 'first_name', 'last_name']);
+        $dietTypes = self::DIET_TYPES;
 
         return view('diet.requests.edit', compact('dietRequest', 'patients', 'dietTypes'));
     }
 
     public function update(StoreDietRequestRequest $request, DietRequest $dietRequest): RedirectResponse
     {
-        abort_if($dietRequest->status !== 'Pending', 403, 'Only pending requests can be edited.');
+        $this->authorize('update', $dietRequest);
+
+        $patient = Patient::findOrFail($request->validated('patient_id'));
+        $this->authorize('create', [DietRequest::class, $patient]);
+
         $dietRequest->update($request->validated());
 
-        ActivityLog::create([
-            'user_id'       => Auth::id(),
-            'action'        => 'Diet Request Updated',
-            'module'        => 'Diet & Nutrition',
-            'description'   => "Diet request [{$dietRequest->request_no}] was updated.",
-            'loggable_type' => DietRequest::class,
-            'loggable_id'   => $dietRequest->id,
-            'ip_address'    => request()->ip(),
-            'logged_at'     => now(),
-        ]);
+        $this->log('Diet Request Updated', "Diet request [{$dietRequest->request_no}] was updated.", $dietRequest);
 
         return redirect()->route('diet.requests.show', $dietRequest)
                          ->with('success', 'Diet request updated.');
@@ -130,21 +123,40 @@ class DietRequestController extends Controller
 
     public function destroy(DietRequest $dietRequest): RedirectResponse
     {
-        abort_if($dietRequest->status !== 'Pending', 403, 'Only pending requests can be cancelled.');
+        $this->authorize('delete', $dietRequest);
+
         $dietRequest->update(['status' => 'Cancelled']);
 
+        $this->log('Diet Request Cancelled', "Diet request [{$dietRequest->request_no}] was cancelled.", $dietRequest);
+
+        return redirect()->route('diet.requests.index')
+                         ->with('success', 'Diet request cancelled.');
+    }
+
+    /** Collision-safe sequential request number. */
+    private function nextRequestNo(): string
+    {
+        $prefix = 'DR-' . date('Y') . '-';
+        $n = DietRequest::count() + 1;
+        do {
+            $no = $prefix . str_pad((string) $n, 4, '0', STR_PAD_LEFT);
+            $n++;
+        } while (DietRequest::where('request_no', $no)->exists());
+
+        return $no;
+    }
+
+    private function log(string $action, string $description, DietRequest $dietRequest): void
+    {
         ActivityLog::create([
             'user_id'       => Auth::id(),
-            'action'        => 'Diet Request Cancelled',
+            'action'        => $action,
             'module'        => 'Diet & Nutrition',
-            'description'   => "Diet request [{$dietRequest->request_no}] was cancelled.",
+            'description'   => $description,
             'loggable_type' => DietRequest::class,
             'loggable_id'   => $dietRequest->id,
             'ip_address'    => request()->ip(),
             'logged_at'     => now(),
         ]);
-
-        return redirect()->route('diet.requests.index')
-                         ->with('success', 'Diet request cancelled.');
     }
 }

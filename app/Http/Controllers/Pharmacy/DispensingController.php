@@ -24,6 +24,7 @@ class DispensingController extends Controller
     public function __construct(
         protected MedicationStockProviderInterface $stockProvider
     ) {}
+
     public function index(Request $request): View
     {
         $query = DispensingRecord::with([
@@ -52,7 +53,6 @@ class DispensingController extends Controller
                   ->orWhere('lot_number', 'like', "%{$search}%");
             });
         }
-
 
         $records = $query->latest('dispensed_at')->paginate(15)->withQueryString();
 
@@ -85,14 +85,14 @@ class DispensingController extends Controller
 
         $selectedPrescription = null;
         if ($rxId = $request->input('rx')) {
-            $selectedPrescription = Prescription::with(['patient', 'doctor', 'items'])->find($rxId);
+            $selectedPrescription = Prescription::with(['patient', 'doctor', 'items.dispensingRecords'])->find($rxId);
         }
 
         $selectedItem = null;
         if ($itemId = $request->input('item')) {
-            $selectedItem = PrescriptionItem::with('prescription.patient')->find($itemId);
+            $selectedItem = PrescriptionItem::with('prescription.patient', 'dispensingRecords')->find($itemId);
             if ($selectedItem && ! $selectedPrescription) {
-                $selectedPrescription = $selectedItem->prescription;
+                $selectedPrescription = $selectedItem->prescription->load(['patient', 'doctor', 'items.dispensingRecords']);
             }
         }
 
@@ -119,7 +119,9 @@ class DispensingController extends Controller
         if ($itemsPayload = $request->input('items')) {
             foreach ($itemsPayload as $key => $itemData) {
                 if (is_array($itemData)) {
-                    $itemId = !empty($itemData['id']) ? $itemData['id'] : (is_numeric($key) ? $key : null);
+                    $itemId = !empty($itemData['id'])
+                        ? $itemData['id']
+                        : (!empty($itemData['prescription_item_id']) ? $itemData['prescription_item_id'] : (is_numeric($key) && (int) $key > 0 ? $key : null));
                     if ($itemId) {
                         $selectedPayloads[$itemId] = [
                             'id'                 => $itemId,
@@ -152,6 +154,12 @@ class DispensingController extends Controller
         }
 
         if (empty($selectedPayloads) && $rxId = $request->input('prescription_id')) {
+            $rxCheck = Prescription::find($rxId);
+            if ($rxCheck && ! in_array($rxCheck->status, ['Verified', 'Partially Dispensed'], true)) {
+                return back()->with('error', "Prescription [{$rxCheck->prescription_no}] is currently {$rxCheck->status}. Prescriptions must be Verified before dispensing.")
+                             ->withInput();
+            }
+
             $pendingItems = PrescriptionItem::where('prescription_id', $rxId)
                 ->where('status', 'Pending')
                 ->get();
@@ -179,7 +187,7 @@ class DispensingController extends Controller
 
         // 2. Fetch and validate items
         /** @var \Illuminate\Database\Eloquent\Collection<int, PrescriptionItem> $items */
-        $items = PrescriptionItem::with('prescription.patient')
+        $items = PrescriptionItem::with(['prescription.patient', 'dispensingRecords'])
             ->whereIn('id', array_keys($selectedPayloads))
             ->get();
 
@@ -200,14 +208,14 @@ class DispensingController extends Controller
         $firstItem = $items->first();
         $prescription = $firstItem->prescription;
 
-        // Verify prescription status is eligible
-        if (!in_array($prescription->status, ['Verified', 'Partially Dispensed', 'Pending'])) {
-            return back()->with('error', "Prescription [{$prescription->prescription_no}] is currently {$prescription->status} and cannot be dispensed.")
+        // Verify prescription status is eligible (must be Verified or Partially Dispensed)
+        if (! in_array($prescription->status, ['Verified', 'Partially Dispensed'], true)) {
+            return back()->with('error', "Prescription [{$prescription->prescription_no}] is currently {$prescription->status}. Only Verified or Partially Dispensed prescriptions can be dispensed.")
                          ->withInput();
         }
 
-        // Verify no items are already dispensed
-        $alreadyDispensed = $items->filter(fn($i) => $i->status === 'Dispensed');
+        // Verify no items are already fully dispensed
+        $alreadyDispensed = $items->filter(fn(PrescriptionItem $i) => $i->status === 'Dispensed' || $i->remaining_quantity <= 0);
         if ($alreadyDispensed->isNotEmpty()) {
             $names = $alreadyDispensed->pluck('medication_name')->implode(', ');
             return back()->with('error', "The following medication(s) have already been dispensed: {$names}.")
@@ -219,9 +227,14 @@ class DispensingController extends Controller
         /** @var PrescriptionItem $item */
         foreach ($items as $item) {
             $payload = $selectedPayloads[$item->id] ?? [];
-            $requestedQty = !empty($payload['quantity_dispensed']) ? (int)$payload['quantity_dispensed'] : (int)$request->input('quantity_dispensed', $item->quantity);
-            if ($requestedQty > $item->quantity) {
-                return back()->with('error', "Dispensing quantity for {$item->medication_name} ({$requestedQty}) exceeds prescribed quantity ({$item->quantity}).")
+            $remainingAuthorizedQty = $item->remaining_quantity;
+
+            $requestedQty = !empty($payload['quantity_dispensed'])
+                ? (int) $payload['quantity_dispensed']
+                : (int) $request->input('quantity_dispensed', $remainingAuthorizedQty);
+
+            if ($requestedQty > $remainingAuthorizedQty) {
+                return back()->with('error', "Dispensing quantity for {$item->medication_name} ({$requestedQty}) exceeds remaining authorized quantity ({$remainingAuthorizedQty}).")
                              ->withInput();
             }
 
@@ -264,8 +277,9 @@ class DispensingController extends Controller
             /** @var PrescriptionItem $item */
             foreach ($items as $item) {
                 $payload = $selectedPayloads[$item->id] ?? [];
+                $alreadyDispensedQty = $item->dispensed_quantity;
 
-                $qty  = $payload['resolved_qty'] ?? (!empty($payload['quantity_dispensed']) ? (int)$payload['quantity_dispensed'] : (int)$request->input('quantity_dispensed', $item->quantity));
+                $qty  = $payload['resolved_qty'] ?? (!empty($payload['quantity_dispensed']) ? (int)$payload['quantity_dispensed'] : (int)$request->input('quantity_dispensed', $item->remaining_quantity));
                 $lot  = $payload['resolved_lot'] ?? (!empty($payload['lot_number']) ? $payload['lot_number'] : $request->input('lot_number'));
                 $exp  = $payload['resolved_exp'] ?? (!empty($payload['expiry_date']) ? $payload['expiry_date'] : $request->input('expiry_date'));
                 $note = !empty($payload['notes']) ? $payload['notes'] : $request->input('notes');
@@ -281,8 +295,10 @@ class DispensingController extends Controller
                     'dispensed_at'         => now(),
                 ]);
 
-                // Mark item as dispensed
-                $item->update(['status' => 'Dispensed']);
+                // Mark item as Dispensed only when cumulative dispensed quantity meets or exceeds authorized quantity
+                if (($alreadyDispensedQty + $qty) >= (int) $item->quantity) {
+                    $item->update(['status' => 'Dispensed']);
+                }
 
                 // Audit log entry per item
                 ActivityLog::create([
@@ -320,7 +336,6 @@ class DispensingController extends Controller
         return redirect()->route('pharmacy.prescriptions.show', $prescription)
                          ->with('success', $message);
     }
-
 
     public function show(DispensingRecord $dispensing): View
     {

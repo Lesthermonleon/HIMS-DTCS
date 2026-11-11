@@ -28,15 +28,18 @@
         </div>
         <div class="d-flex flex-column gap-2">
             @if($labRequest->status==='Pending')
-                @if(auth()->user()?->hasRole('med-tech'))
+                @if(auth()->user()?->hasRole('med-tech') && auth()->user()->hasPermission('lis.specimens.process'))
                     <form method="POST" action="{{ route('lab.requests.receive', $labRequest) }}">
                         @csrf @method('PATCH')
                         <button type="submit" class="btn btn-success w-100" data-confirm="Are you sure you want to mark lab request {{ $labRequest->request_no }} as received?"><i class="bi bi-inbox-fill me-1"></i>Mark as Received</button>
                     </form>
+                    <button type="button" class="btn btn-outline-danger w-100" data-bs-toggle="modal" data-bs-target="#rejectSpecimenModal"><i class="bi bi-x-circle me-1"></i>Reject Specimen</button>
                 @endif
                 @if(auth()->user()?->hasRole('doctor'))
                     <a href="{{ route('lab.requests.edit', $labRequest) }}" class="btn btn-outline-warning"><i class="bi bi-pencil me-1"></i>Edit Request</a>
                 @endif
+            @elseif($labRequest->status==='In Progress' && auth()->user()?->hasRole('med-tech') && auth()->user()->hasPermission('lis.specimens.process'))
+                <button type="button" class="btn btn-outline-danger w-100" data-bs-toggle="modal" data-bs-target="#rejectSpecimenModal"><i class="bi bi-x-circle me-1"></i>Reject Specimen</button>
             @endif
             <a href="{{ route('lab.requests.print', ['labRequest' => $labRequest]) }}" target="_blank" class="btn btn-outline-secondary"><i class="bi bi-printer me-1"></i>Print Report</a>
             <a href="{{ route('lab.requests.index') }}" class="btn btn-outline-primary"><i class="bi bi-arrow-left me-1"></i>Back to List</a>
@@ -56,26 +59,26 @@
                         <td>{{ $item->labTest?->category?->name ?? 'Uncategorized' }}</td>
                         <td>{{ $item->labTest?->normal_range ?? '-' }}</td>
                         <td>{{ $item->labTest?->unit ?? '-' }}</td>
-                        <td><span class="badge bg-{{ $item->status === 'Completed' ? 'success' : ($item->status === 'In Progress' ? 'info' : 'secondary') }}">{{ $item->status }}</span></td>
+                        <td><span class="badge bg-{{ $item->status === 'Completed' ? 'success' : ($item->status === 'In Progress' ? 'info' : ($item->status === 'Cancelled' ? 'danger' : 'secondary')) }}">{{ $item->status }}</span></td>
                         <td>
                         @if($item->result)
                             <strong>{{ $item->result->result_value }} {{ $item->labTest->unit }}</strong><br>
                             <small class="text-muted">{{ $item->result->remarks }}</small><br>
                             <span class="badge bg-{{ $item->result->statusBadge }}">{{ $item->result->status }}</span>
                             @if(auth()->user()?->hasRole('med-tech') && in_array($item->result->status, ['Encoded','Validated']))
-                                @if($item->result->status === 'Encoded')
+                                @if($item->result->status === 'Encoded' && auth()->user()->hasPermission('lis.results.verify'))
                                     <form method="POST" action="{{ route('lab.results.validate', $item->result) }}" class="d-inline">
                                         @csrf @method('PATCH')
                                         <button class="btn btn-xs btn-outline-primary ms-1" style="font-size:.7rem;padding:2px 6px">Validate</button>
                                     </form>
-                                @elseif($item->result->status === 'Validated')
+                                @elseif($item->result->status === 'Validated' && auth()->user()->hasPermission('lis.results.release'))
                                     <form method="POST" action="{{ route('lab.results.release', $item->result) }}" class="d-inline">
                                         @csrf @method('PATCH')
                                         <button class="btn btn-xs btn-outline-success ms-1" style="font-size:.7rem;padding:2px 6px">Release</button>
                                     </form>
                                 @endif
                             @endif
-                        @elseif(auth()->user()?->hasRole('med-tech') && $labRequest->status==='In Progress')
+                        @elseif(auth()->user()?->hasRole('med-tech') && auth()->user()->hasPermission('lis.results.enter') && $labRequest->status==='In Progress')
                             <a href="{{ route('lab.results.create') }}?item_id={{ $item->id }}" class="btn btn-sm btn-outline-info">Encode Result</a>
                         @else
                             <span class="text-muted small">Awaiting result</span>
@@ -90,4 +93,29 @@
         </div>
     </div>
 </div>
+
+@if(auth()->user()?->hasRole('med-tech') && auth()->user()->hasPermission('lis.specimens.process') && !in_array($labRequest->status, ['Completed', 'Cancelled']))
+<div class="modal fade" id="rejectSpecimenModal" tabindex="-1" aria-labelledby="rejectSpecimenModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="POST" action="{{ route('lab.requests.reject', $labRequest) }}" class="modal-content">
+            @csrf @method('PATCH')
+            <div class="modal-header">
+                <h5 class="modal-title" id="rejectSpecimenModalLabel"><i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>Reject Specimen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-3">Please record the clinical reason for rejecting the specimen for request <strong>{{ $labRequest->request_no }}</strong> (e.g., hemolyzed sample, insufficient volume, incorrect container, unlabelled tube).</p>
+                <div class="mb-3">
+                    <label for="rejection_reason" class="form-label fw-semibold">Rejection Reason <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="rejection_reason" name="rejection_reason" rows="3" required placeholder="Specify reason for specimen rejection..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-danger"><i class="bi bi-x-circle me-1"></i>Confirm Rejection</button>
+            </div>
+        </form>
+    </div>
+</div>
+@endif
 @endsection

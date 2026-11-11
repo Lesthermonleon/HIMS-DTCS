@@ -8,15 +8,14 @@
 
 @php
 $barColors = [
-    'signal' => '#15803d',
     'coral'  => '#dc2626',
-    'amber'  => '#15803d',
+    'amber'  => '#d97706',
     'steel'  => '#648071',
 ];
-$bar = $barColors[$color] ?? $barColors['signal'];
+$bar = $barColors[$color] ?? null;
 @endphp
 
-<div {{ $attributes->merge(['class' => 'skeleton-stat-card', 'style' => "border-left-color: {$bar};"]) }}
+<div {{ $attributes->merge(['class' => 'skeleton-stat-card', 'style' => $bar ? "border-left-color: {$bar};" : 'border-left-color: transparent;']) }}
      role="status" aria-label="Loading statistic" aria-busy="true">
     <div class="sk-stat-top">
         <div style="flex:1;">
