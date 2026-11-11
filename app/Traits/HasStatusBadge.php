@@ -16,7 +16,8 @@ trait HasStatusBadge
         return match ($this->status ?? '') {
             'Pending'              => 'secondary',
             'In Progress',
-            'Scheduled'            => 'info text-dark',
+            'Scheduled',
+            'Revised'              => 'info text-dark',
             'Completed', 'Released',
             'Dispensed', 'Active'  => 'success',
             'Verified'             => 'primary',
@@ -24,7 +25,9 @@ trait HasStatusBadge
             'Validated'            => 'info',
             'Approved',
             'Draft'                => 'warning text-dark',
-            'Cancelled', 'Refused' => 'danger',
+            'Cancelled', 'Refused',
+            'Rejected', 'Voided'   => 'danger',
+            'Returned', 'Refunded',
             'Partially Dispensed'  => 'warning text-dark',
             default                => 'secondary',
         };

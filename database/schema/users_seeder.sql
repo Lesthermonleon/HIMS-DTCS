@@ -20,7 +20,8 @@ INSERT INTO `roles` (`id`, `name`, `slug`, `dashboard_route`, `description`, `cr
 (5, 'Radiologist',             'radiologist',    'radiology.dashboard', 'Interpret imaging results and approve radiology reports',     NOW(), NOW()),
 (6, 'Pharmacist',              'pharmacist',     'pharmacy.dashboard',  'Verify and dispense prescriptions',                          NOW(), NOW()),
 (7, 'Dietitian / Nutritionist','dietitian',      'diet.dashboard',      'Create and manage therapeutic diet plans',                   NOW(), NOW()),
-(8, 'OR Coordinator',          'or-coordinator', 'surgery.dashboard',   'Schedule surgeries and assign operating rooms',               NOW(), NOW())
+(8, 'OR Coordinator',          'or-coordinator', 'surgery.dashboard',   'Schedule surgeries and assign operating rooms',               NOW(), NOW()),
+(9, 'OR Staff',                'or-staff',       'surgery.dashboard',   'View assigned surgery schedules, update OR readiness and operational status', NOW(), NOW())
 ON DUPLICATE KEY UPDATE 
     `name` = VALUES(`name`),
     `dashboard_route` = VALUES(`dashboard_route`),

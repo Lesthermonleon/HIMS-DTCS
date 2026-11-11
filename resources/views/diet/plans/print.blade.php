@@ -22,8 +22,8 @@
             <div class="info-value text-success fw-bold">{{ $dietPlan->diet_type }}</div>
         </div>
         <div class="col-4 mt-2">
-            <div class="info-label">Clinical Dietitian</div>
-            <div class="info-value">{{ $dietPlan->dietitian->name ?? 'Clinical Dietitian' }}</div>
+            <div class="info-label">Created By</div>
+            <div class="info-value">{{ $dietPlan->createdBy->name ?? ($dietPlan->dietitian->name ?? ($dietPlan->dietRequest->doctor->name ?? 'Attending Physician')) }}</div>
         </div>
         <div class="col-4 mt-2">
             <div class="info-label">Effective Dates</div>
@@ -58,6 +58,12 @@
 </table>
 
 <!-- Clinical Instructions & Meal Schedule -->
+@if($dietPlan->assessment_notes)
+<div class="mb-3">
+    <h6 class="fw-bold mb-2 text-uppercase text-secondary" style="font-size: 11px; letter-spacing: 0.04em;">Nutrition Assessment &amp; Recommendations</h6>
+    <div class="p-3 border rounded" style="font-size: 12.5px; white-space: pre-line;">{{ $dietPlan->assessment_notes }}</div>
+</div>
+@endif
 <div class="mb-4">
     <h6 class="fw-bold mb-2 text-uppercase text-secondary" style="font-size: 11px; letter-spacing: 0.04em;">Therapeutic Diet Notes & Food Allergies</h6>
     <div class="p-3 border rounded bg-light" style="font-size: 12.5px;">{{ $dietPlan->instructions ?? 'No special meal instructions or allergy warnings.' }}</div>

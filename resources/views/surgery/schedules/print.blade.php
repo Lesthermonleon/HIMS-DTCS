@@ -23,15 +23,15 @@
         </div>
         <div class="col-4 mt-2">
             <div class="info-label">Operating Room (OR)</div>
-            <div class="info-value fw-bold text-dark">{{ $surgerySchedule->operating_room }}</div>
+            <div class="info-value fw-bold text-dark">{{ $surgerySchedule->operatingRoom->name ?? 'Unassigned' }}</div>
         </div>
         <div class="col-4 mt-2">
             <div class="info-label">Scheduled Date & Time</div>
-            <div class="info-value">{{ \Carbon\Carbon::parse($surgerySchedule->scheduled_date)->format('M d, Y') }} — {{ \Carbon\Carbon::parse($surgerySchedule->scheduled_time)->format('h:i A') }}</div>
+            <div class="info-value">{{ $surgerySchedule->scheduled_at ? $surgerySchedule->scheduled_at->format('M d, Y — h:i A') : 'N/A' }}</div>
         </div>
         <div class="col-4 mt-2">
-            <div class="info-label">Schedule Status</div>
-            <div class="info-value text-danger fw-bold">{{ $surgerySchedule->status }}</div>
+            <div class="info-label">Schedule Status / OR Prep</div>
+            <div class="info-value text-danger fw-bold">{{ $surgerySchedule->status }} ({{ $surgerySchedule->readiness_status ?? 'Pending Prep' }})</div>
         </div>
     </div>
 </div>

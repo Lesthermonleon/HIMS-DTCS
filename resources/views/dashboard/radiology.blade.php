@@ -31,101 +31,172 @@
     </div>
 </div>
 
-{{-- ── Stat Cards (Admin & Doctor Style) ── --}}
-<div class="balanced-grid balanced-grid-4 mb-4">
-    {{-- Card 1: Total Procedures --}}
-    <a href="{{ route('radiology.requests.index') }}" class="text-decoration-none">
+{{-- ── Stat Cards (Role-Aware 5 Operational KPIs) ── --}}
+@if($isRadiologist)
+<div class="balanced-grid balanced-grid-5 mb-4">
+    {{-- Card 1: Reports Awaiting Review --}}
+    <a href="{{ route('radiology.reports.index', ['status' => 'Draft']) }}" class="text-decoration-none">
         <div class="card border-0 shadow-sm h-100 card-hover-elevate transition-all">
             <div class="card-body p-3">
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="text-muted small fw-semibold text-uppercase">Total Procedures</span>
-                    <div class="bg-primary bg-opacity-10 text-primary rounded-circle p-2">
-                        <i class="bi bi-camera-reels-fill fs-5"></i>
-                    </div>
-                </div>
-                <h3 class="fw-bold text-dark mb-0">{{ number_format($stats['total_requests']) }}</h3>
-                <div class="small text-primary mt-2">
-                    View Procedures <i class="bi bi-arrow-right"></i>
-                </div>
-            </div>
-        </div>
-    </a>
-
-    {{-- Card 2: Pending Imaging --}}
-    <a href="{{ route('radiology.requests.index', ['status' => 'Pending']) }}" class="text-decoration-none">
-        <div class="card border-0 shadow-sm h-100 card-hover-elevate transition-all">
-            <div class="card-body p-3">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="text-muted small fw-semibold text-uppercase">Pending Requests</span>
+                    <span class="text-muted small fw-semibold text-uppercase">Reports Awaiting Review</span>
                     <div class="bg-warning bg-opacity-10 text-warning rounded-circle p-2">
-                        <i class="bi bi-hourglass-split fs-5"></i>
+                        <i class="bi bi-file-earmark-medical fs-5"></i>
                     </div>
                 </div>
-                <h3 class="fw-bold text-dark mb-0">{{ number_format($stats['pending']) }}</h3>
-                <div class="small text-warning mt-2">
-                    Process Pending <i class="bi bi-arrow-right"></i>
-                </div>
+                <h3 class="fw-bold text-dark mb-0">{{ number_format($stats['awaiting_review'] ?? 0) }}</h3>
+                <div class="small text-warning mt-2">Review Studies <i class="bi bi-arrow-right"></i></div>
             </div>
         </div>
     </a>
 
-    {{-- Card 3: Completed Today --}}
-    <a href="{{ route('radiology.requests.index', ['status' => 'Completed']) }}" class="text-decoration-none">
+    {{-- Card 2: Reports Under Review --}}
+    <a href="{{ route('radiology.reports.index', ['status' => 'Draft']) }}" class="text-decoration-none">
         <div class="card border-0 shadow-sm h-100 card-hover-elevate transition-all">
             <div class="card-body p-3">
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="text-muted small fw-semibold text-uppercase">Completed Today</span>
+                    <span class="text-muted small fw-semibold text-uppercase">Reports Under Review</span>
+                    <div class="bg-info bg-opacity-10 text-info rounded-circle p-2">
+                        <i class="bi bi-journal-text fs-5"></i>
+                    </div>
+                </div>
+                <h3 class="fw-bold text-dark mb-0">{{ number_format($stats['under_review'] ?? 0) }}</h3>
+                <div class="small text-info mt-2">Active Drafts <i class="bi bi-arrow-right"></i></div>
+            </div>
+        </div>
+    </a>
+
+    {{-- Card 3: Reports Returned for Correction --}}
+    <a href="{{ route('radiology.reports.index') }}" class="text-decoration-none">
+        <div class="card border-0 shadow-sm h-100 card-hover-elevate transition-all">
+            <div class="card-body p-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-muted small fw-semibold text-uppercase">Reports Returned for Correction</span>
+                    <div class="bg-danger bg-opacity-10 text-danger rounded-circle p-2">
+                        <i class="bi bi-arrow-counterclockwise fs-5"></i>
+                    </div>
+                </div>
+                <h3 class="fw-bold text-dark mb-0">{{ number_format($stats['returned_correction'] ?? 0) }}</h3>
+                <div class="small text-danger mt-2">Needs Addendum <i class="bi bi-arrow-right"></i></div>
+            </div>
+        </div>
+    </a>
+
+    {{-- Card 4: Reports Awaiting Approval --}}
+    <a href="{{ route('radiology.reports.index', ['status' => 'Approved']) }}" class="text-decoration-none">
+        <div class="card border-0 shadow-sm h-100 card-hover-elevate transition-all">
+            <div class="card-body p-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-muted small fw-semibold text-uppercase">Reports Awaiting Approval</span>
+                    <div class="bg-primary bg-opacity-10 text-primary rounded-circle p-2">
+                        <i class="bi bi-patch-check fs-5"></i>
+                    </div>
+                </div>
+                <h3 class="fw-bold text-dark mb-0">{{ number_format($stats['awaiting_approval'] ?? 0) }}</h3>
+                <div class="small text-primary mt-2">Approve &amp; Sign <i class="bi bi-arrow-right"></i></div>
+            </div>
+        </div>
+    </a>
+
+    {{-- Card 5: Reports Released --}}
+    <a href="{{ route('radiology.reports.index', ['status' => 'Released']) }}" class="text-decoration-none">
+        <div class="card border-0 shadow-sm h-100 card-hover-elevate transition-all">
+            <div class="card-body p-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-muted small fw-semibold text-uppercase">Reports Released</span>
                     <div class="bg-success bg-opacity-10 text-success rounded-circle p-2">
                         <i class="bi bi-check2-circle fs-5"></i>
                     </div>
                 </div>
-                <h3 class="fw-bold text-dark mb-0">{{ number_format($stats['today_completed']) }}</h3>
-                <div class="small text-success mt-2">
-                    View Completed <i class="bi bi-arrow-right"></i>
+                <h3 class="fw-bold text-dark mb-0">{{ number_format($stats['released_reports'] ?? $stats['reports_released'] ?? 0) }}</h3>
+                <div class="small text-success mt-2">Official Reports <i class="bi bi-arrow-right"></i></div>
+            </div>
+        </div>
+    </a>
+</div>
+@else
+<div class="balanced-grid balanced-grid-5 mb-4">
+    {{-- Card 1: Pending Imaging Requests --}}
+    <a href="{{ route('radiology.requests.index', ['status' => 'Pending']) }}" class="text-decoration-none">
+        <div class="card border-0 shadow-sm h-100 card-hover-elevate transition-all">
+            <div class="card-body p-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-muted small fw-semibold text-uppercase">Pending Imaging Requests</span>
+                    <div class="bg-warning bg-opacity-10 text-warning rounded-circle p-2">
+                        <i class="bi bi-hourglass-split fs-5"></i>
+                    </div>
                 </div>
+                <h3 class="fw-bold text-dark mb-0">{{ number_format($stats['pending_requests'] ?? $stats['pending']) }}</h3>
+                <div class="small text-warning mt-2">Schedule Exams <i class="bi bi-arrow-right"></i></div>
             </div>
         </div>
     </a>
 
-    {{-- Card 4: Role-Aware Card --}}
-    <div>
-        @if($isRadiologist || auth()->user()->hasAnyRole(['admin', 'doctor']))
-            <a href="{{ route('radiology.reports.index', ['status' => 'Draft']) }}" class="text-decoration-none">
-                <div class="card border-0 shadow-sm h-100 card-hover-elevate transition-all">
-                    <div class="card-body p-3">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="text-muted small fw-semibold text-uppercase">Pending Interpretation</span>
-                            <div class="bg-danger bg-opacity-10 text-danger rounded-circle p-2">
-                                <i class="bi bi-file-earmark-text-fill fs-5"></i>
-                            </div>
-                        </div>
-                        <h3 class="fw-bold text-dark mb-0">{{ number_format($stats['reports_pending'] ?? 0) }}</h3>
-                        <div class="small text-danger mt-2">
-                            Review Reports <i class="bi bi-arrow-right"></i>
-                        </div>
+    {{-- Card 2: Scheduled Examinations --}}
+    <a href="{{ route('radiology.requests.index', ['status' => 'Scheduled']) }}" class="text-decoration-none">
+        <div class="card border-0 shadow-sm h-100 card-hover-elevate transition-all">
+            <div class="card-body p-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-muted small fw-semibold text-uppercase">Scheduled Examinations</span>
+                    <div class="bg-primary bg-opacity-10 text-primary rounded-circle p-2">
+                        <i class="bi bi-calendar-event fs-5"></i>
                     </div>
                 </div>
-            </a>
-        @else
-            <a href="{{ route('radiology.requests.index', ['status' => 'In Progress']) }}" class="text-decoration-none">
-                <div class="card border-0 shadow-sm h-100 card-hover-elevate transition-all">
-                    <div class="card-body p-3">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="text-muted small fw-semibold text-uppercase">Scans In Progress</span>
-                            <div class="bg-info bg-opacity-10 text-info rounded-circle p-2">
-                                <i class="bi bi-cpu-fill fs-5"></i>
-                            </div>
-                        </div>
-                        <h3 class="fw-bold text-dark mb-0">{{ number_format(($stats['in_progress'] ?? 0) + ($stats['scheduled'] ?? 0)) }}</h3>
-                        <div class="small text-info mt-2">
-                            Manage Scans <i class="bi bi-arrow-right"></i>
-                        </div>
+                <h3 class="fw-bold text-dark mb-0">{{ number_format($stats['scheduled'] ?? 0) }}</h3>
+                <div class="small text-primary mt-2">Booked Queue <i class="bi bi-arrow-right"></i></div>
+            </div>
+        </div>
+    </a>
+
+    {{-- Card 3: Examinations In Progress --}}
+    <a href="{{ route('radiology.requests.index', ['status' => 'In Progress']) }}" class="text-decoration-none">
+        <div class="card border-0 shadow-sm h-100 card-hover-elevate transition-all">
+            <div class="card-body p-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-muted small fw-semibold text-uppercase">Examinations In Progress</span>
+                    <div class="bg-info bg-opacity-10 text-info rounded-circle p-2">
+                        <i class="bi bi-cpu-fill fs-5"></i>
                     </div>
                 </div>
-            </a>
-        @endif
-    </div>
+                <h3 class="fw-bold text-dark mb-0">{{ number_format($stats['in_progress'] ?? 0) }}</h3>
+                <div class="small text-info mt-2">Active Scans <i class="bi bi-arrow-right"></i></div>
+            </div>
+        </div>
+    </a>
+
+    {{-- Card 4: Completed Examinations --}}
+    <a href="{{ route('radiology.requests.index', ['status' => 'Completed']) }}" class="text-decoration-none">
+        <div class="card border-0 shadow-sm h-100 card-hover-elevate transition-all">
+            <div class="card-body p-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-muted small fw-semibold text-uppercase">Completed Examinations</span>
+                    <div class="bg-success bg-opacity-10 text-success rounded-circle p-2">
+                        <i class="bi bi-check2-circle fs-5"></i>
+                    </div>
+                </div>
+                <h3 class="fw-bold text-dark mb-0">{{ number_format($stats['completed_exams'] ?? $stats['completed']) }}</h3>
+                <div class="small text-success mt-2">{{ number_format($stats['today_completed'] ?? 0) }} Today <i class="bi bi-arrow-right"></i></div>
+            </div>
+        </div>
+    </a>
+
+    {{-- Card 5: Reports to Prepare --}}
+    <a href="{{ route('radiology.reports.index') }}" class="text-decoration-none">
+        <div class="card border-0 shadow-sm h-100 card-hover-elevate transition-all">
+            <div class="card-body p-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-muted small fw-semibold text-uppercase">Reports to Prepare</span>
+                    <div class="bg-danger bg-opacity-10 text-danger rounded-circle p-2">
+                        <i class="bi bi-file-earmark-plus fs-5"></i>
+                    </div>
+                </div>
+                <h3 class="fw-bold text-dark mb-0">{{ number_format($stats['reports_to_prepare'] ?? 0) }}</h3>
+                <div class="small text-danger mt-2">Awaiting Draft <i class="bi bi-arrow-right"></i></div>
+            </div>
+        </div>
+    </a>
 </div>
+@endif
 
 @if($isRadiologist)
 {{-- ── 3. Radiologist Primary Work Queue: Studies Awaiting Interpretation ── --}}
@@ -385,14 +456,14 @@
     {"pending": {{ $stats['pending'] }}, "scheduled": {{ $stats['scheduled'] + $stats['in_progress'] }}, "completed": {{ $stats['completed'] }}}
 </script>
 
-{{-- ── Radiology Analytics: Request Trend + Report Status ── --}}
+{{-- ── Radiology Analytics: Request Trend + Modality Distribution + Report Status ── --}}
 <div class="row g-4 mb-4">
-    <div class="col-lg-8">
+    <div class="col-lg-5">
         <div class="chart-card h-100">
             <div class="chart-header">
                 <div>
-                    <h3 class="chart-title"><i class="bi bi-graph-up-arrow me-2 text-success"></i>Radiology Request Trend</h3>
-                    <p class="chart-subtitle">Monthly radiology examination requests over time</p>
+                    <h3 class="chart-title"><i class="bi bi-graph-up-arrow me-2 text-success"></i>{{ $isRadiologist ? 'Radiology Report Review Trends' : 'Imaging Examinations Trend' }}</h3>
+                    <p class="chart-subtitle">Monthly radiology examination volume over time</p>
                 </div>
                 <select id="radTrendPeriod" class="form-select form-select-sm" style="width:auto;">
                     <option value="6">Last 6 Months</option>
@@ -408,8 +479,21 @@
         <div class="chart-card h-100">
             <div class="chart-header">
                 <div>
+                    <h3 class="chart-title"><i class="bi bi-bar-chart-fill me-2 text-info"></i>Modality Distribution</h3>
+                    <p class="chart-subtitle">Volume by X-Ray, CT, MRI &amp; Ultrasound</p>
+                </div>
+            </div>
+            <div class="chart-container" style="height: 260px;">
+                <canvas id="radModalityChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3">
+        <div class="chart-card h-100">
+            <div class="chart-header">
+                <div>
                     <h3 class="chart-title"><i class="bi bi-pie-chart-fill me-2 text-success"></i>Report Status Distribution</h3>
-                    <p class="chart-subtitle">Draft, Approved, and Released reports</p>
+                    <p class="chart-subtitle">Draft, Approved &amp; Released</p>
                 </div>
             </div>
             <div class="chart-container" style="height: 260px;">
@@ -418,8 +502,165 @@
         </div>
     </div>
 </div>
+
+{{-- ── Role-Specific Operational Queues & Recent Activities ── --}}
+@if($isRadiologist)
+<div class="row g-4 mb-4">
+    {{-- Pending Report Reviews & Corrections --}}
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-journal-medical me-2 text-warning"></i>Pending Report Reviews</h6>
+                <span class="badge bg-warning-subtle text-warning-emphasis">{{ ($pendingReportReviews ?? collect())->count() }}</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    @forelse($pendingReportReviews ?? [] as $rev)
+                        <div class="list-group-item p-3 border-bottom d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fw-bold text-dark small">{{ $rev->report_no ?? 'RPT-'.$rev->id }} &bull; {{ $rev->radiologyRequest?->patient?->full_name ?? 'Patient' }}</div>
+                                <div class="small text-muted">{{ $rev->radiologyRequest?->modality }} &bull; <span class="badge bg-light text-dark border">{{ $rev->status }}</span></div>
+                            </div>
+                            <a href="{{ route('radiology.reports.show', $rev) }}" class="btn btn-sm btn-outline-primary py-0 px-2">Review</a>
+                        </div>
+                    @empty
+                        <div class="text-center py-4 text-muted small">No reports awaiting radiologist review.</div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Recent Approved & Released Reports --}}
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-patch-check-fill me-2 text-success"></i>Recent Approved Reports</h6>
+                <a href="{{ route('radiology.reports.index') }}" class="btn btn-sm btn-outline-secondary py-0">All</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    @forelse($recentApprovedReports ?? [] as $apr)
+                        <div class="list-group-item p-3 border-bottom d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fw-bold text-dark small">{{ $apr->radiologyRequest?->patient?->full_name ?? 'Patient' }}</div>
+                                <div class="small text-muted">{{ $apr->radiologyRequest?->modality }} &bull; {{ $apr->status }}</div>
+                            </div>
+                            <a href="{{ route('radiology.reports.show', $apr) }}" class="btn btn-sm btn-outline-success py-0 px-2">View</a>
+                        </div>
+                    @empty
+                        <div class="text-center py-4 text-muted small">No approved or released reports yet.</div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Recent Radiology Activities --}}
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3">
+                <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-clock-history me-2 text-info"></i>Recent Radiology Activities</h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    @forelse($recentRadActivities ?? [] as $log)
+                        <div class="list-group-item p-3 border-bottom">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <span class="fw-semibold text-dark small">{{ $log->action }}</span>
+                                <span class="small text-muted" style="font-size: 0.72rem;">{{ $log->logged_at?->diffForHumans() }}</span>
+                            </div>
+                            <div class="small text-muted">{{ Str::limit($log->description, 65) }}</div>
+                        </div>
+                    @empty
+                        <div class="text-center py-4 text-muted small">No recent radiology activity logged.</div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@else
+<div class="row g-4 mb-4">
+    {{-- Today's Imaging Schedule --}}
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-calendar-event me-2 text-primary"></i>Today's Imaging Schedule</h6>
+                <span class="badge bg-primary-subtle text-primary">{{ ($todaysImagingSchedule ?? collect())->count() }}</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    @forelse($todaysImagingSchedule ?? [] as $sched)
+                        <div class="list-group-item p-3 border-bottom d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fw-bold text-dark small">{{ $sched->request_no }} &bull; {{ $sched->patient->full_name ?? 'Patient' }}</div>
+                                <div class="small text-muted">{{ $sched->modality }} &bull; {{ $sched->status }}</div>
+                            </div>
+                            <a href="{{ route('radiology.requests.show', $sched) }}" class="btn btn-sm btn-outline-primary py-0 px-2">Open</a>
+                        </div>
+                    @empty
+                        <div class="text-center py-4 text-muted small">No imaging examinations scheduled for today.</div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Reports Requiring Preparation --}}
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-file-earmark-plus me-2 text-warning"></i>Reports Requiring Preparation</h6>
+                <span class="badge bg-warning-subtle text-warning-emphasis">{{ ($reportsRequiringPreparation ?? collect())->count() }}</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    @forelse($reportsRequiringPreparation ?? [] as $prep)
+                        <div class="list-group-item p-3 border-bottom d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fw-bold text-dark small">{{ $prep->request_no }} &bull; {{ $prep->patient->full_name ?? 'Patient' }}</div>
+                                <div class="small text-muted">{{ $prep->modality }} ({{ $prep->body_part }})</div>
+                            </div>
+                            <a href="{{ route('radiology.reports.create', ['radiology_request_id' => $prep->id]) }}" class="btn btn-sm btn-outline-warning py-0 px-2">Prepare</a>
+                        </div>
+                    @empty
+                        <div class="text-center py-4 text-muted small">All completed examinations have reports prepared.</div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Recent Imaging Activities --}}
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3">
+                <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-clock-history me-2 text-info"></i>Recent Imaging Activities</h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    @forelse($recentRadActivities ?? [] as $log)
+                        <div class="list-group-item p-3 border-bottom">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <span class="fw-semibold text-dark small">{{ $log->action }}</span>
+                                <span class="small text-muted" style="font-size: 0.72rem;">{{ $log->logged_at?->diffForHumans() }}</span>
+                            </div>
+                            <div class="small text-muted">{{ Str::limit($log->description, 65) }}</div>
+                        </div>
+                    @empty
+                        <div class="text-center py-4 text-muted small">No recent imaging activities logged.</div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
+
 <script type="application/json" id="rad-trend-6m">@json($radTrend6m)</script>
 <script type="application/json" id="rad-trend-12m">@json($radTrend12m)</script>
+<script type="application/json" id="rad-modality-data">@json($radModalityDistribution ?? [])</script>
 <script type="application/json" id="rad-report-breakdown">@json($radReportBreakdown)</script>
 
 @endsection
@@ -488,6 +729,32 @@
             rpt.map(r => r.count),
             { 'Draft': '#9E9E9E', 'Approved': '#1976D2', 'Released': '#4CAF50' }
         );
+    }
+
+    const modEl = document.getElementById('rad-modality-data');
+    const modCtx = document.getElementById('radModalityChart');
+    if (modEl && modCtx && typeof Chart !== 'undefined') {
+        const modData = JSON.parse(modEl.textContent || '[]');
+        if (modData.length > 0) {
+            new Chart(modCtx, {
+                type: 'bar',
+                data: {
+                    labels: modData.map(m => m.label),
+                    datasets: [{
+                        label: 'Examinations',
+                        data: modData.map(m => m.count),
+                        backgroundColor: ['rgba(14, 165, 233, 0.85)', 'rgba(99, 102, 241, 0.85)', 'rgba(13, 148, 136, 0.85)', 'rgba(245, 158, 11, 0.85)', 'rgba(236, 72, 153, 0.85)'],
+                        borderRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+                }
+            });
+        }
     }
 })();
 </script>

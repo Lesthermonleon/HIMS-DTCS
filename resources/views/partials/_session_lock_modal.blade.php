@@ -295,7 +295,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var lastActivityTime = Date.now();
     var isLocked         = configEl ? configEl.getAttribute('data-locked') === '1' : false;
     var isWarningActive  = false;
-    var timerInterval    = null;
+    var timerInterval    = 0;
 
     var warningModal = document.getElementById('sessionWarningModal');
     var warningSecs  = document.getElementById('warningSecondsCount');

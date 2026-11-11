@@ -20,6 +20,7 @@ class Role extends Model
     public function getAccessibleModulesAttribute(): string
     {
         return match ($this->slug) {
+            'super_admin'    => 'Governance, Master Catalog, Clinical Codes, Audit Vault, Security & System Settings',
             'admin'          => 'All Modules (LIS, RIS, PMS, SORS, DNMS, User Management, Permission)',
             'doctor'         => 'LIS, RIS, PMS, SORS, DNMS',
             'med-tech'       => 'LIS',
@@ -28,6 +29,8 @@ class Role extends Model
             'pharmacist'     => 'PMS',
             'dietitian'      => 'DNMS',
             'or-coordinator' => 'SORS',
+            'or-staff'       => 'SORS',
+            'patient'        => 'Patient Portal',
             default          => 'None',
         };
     }
@@ -42,6 +45,7 @@ class Role extends Model
         }
 
         return match ($this->slug) {
+            'super_admin'    => 'super-admin.dashboard',
             'admin'          => 'admin.dashboard',
             'doctor'         => 'doctor.dashboard',
             'med-tech'       => 'lab.dashboard',
@@ -50,6 +54,8 @@ class Role extends Model
             'pharmacist'     => 'pharmacy.dashboard',
             'dietitian'      => 'diet.dashboard',
             'or-coordinator' => 'surgery.dashboard',
+            'or-staff'       => 'surgery.dashboard',
+            'patient'        => 'patient.dashboard',
             default          => 'dashboard',
         };
     }

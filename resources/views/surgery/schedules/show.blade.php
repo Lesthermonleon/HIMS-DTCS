@@ -24,10 +24,10 @@
                 </div>
                 <div class="text-muted small">
                     Req #: 
-                    @if($surgerySchedule->surgery_request_id)
+                    @if($surgerySchedule->surgeryRequest && auth()->user()->can('view', $surgerySchedule->surgeryRequest))
                         <a href="{{ route('surgery.requests.show', $surgerySchedule->surgery_request_id) }}" class="fw-semibold">{{ $surgerySchedule->surgeryRequest->request_no ?? 'N/A' }}</a>
                     @else
-                        <span class="fw-semibold text-muted">N/A</span>
+                        <span class="fw-semibold text-dark">{{ $surgerySchedule->surgeryRequest->request_no ?? 'N/A' }}</span>
                     @endif
                 </div>
             </div>
@@ -67,7 +67,7 @@
                 <h6 class="mb-0 fw-bold d-flex align-items-center gap-2" style="font-family: var(--font-display);">
                     <i class="bi bi-person text-primary"></i>Patient Profile
                 </h6>
-                @if($surgerySchedule->surgeryRequest && $surgerySchedule->surgeryRequest->patient)
+                @if($surgerySchedule->surgeryRequest && $surgerySchedule->surgeryRequest->patient && auth()->user()->canAccessPatients())
                     <a href="{{ route('patients.show', $surgerySchedule->surgeryRequest->patient_id) }}" class="btn btn-xs btn-outline-primary" style="font-size: 0.78rem;">
                         View Patient Chart
                     </a>
@@ -161,10 +161,61 @@
             </div>
         </div>
 
+        <!-- OR Preparation & Readiness Card -->
+        <div class="card shadow-sm border-0 mb-4" style="border-radius: 0.75rem; background: var(--card);">
+            <div class="card-header border-bottom py-3 px-4 d-flex justify-content-between align-items-center" style="background: rgba(0,0,0,0.015);">
+                <h6 class="mb-0 fw-bold d-flex align-items-center gap-2" style="font-family: var(--font-display);">
+                    <i class="bi bi-clipboard2-check text-primary"></i>OR Preparation & Readiness
+                </h6>
+                @php $rStatus = $surgerySchedule->readiness_status ?? 'Pending Prep'; @endphp
+                <span class="badge bg-{{ $rStatus === 'Ready' ? 'success' : ($rStatus === 'Preparing' ? 'warning text-dark' : 'secondary') }}">
+                    {{ $rStatus }}
+                </span>
+            </div>
+            <div class="card-body p-4">
+                @if($surgerySchedule->readiness_notes)
+                    <div class="mb-3">
+                        <div class="text-muted small mb-1" style="font-size: 0.72rem; text-transform: uppercase; font-weight: 600;">Preparation Notes</div>
+                        <div class="p-2 rounded border bg-light small">{{ $surgerySchedule->readiness_notes }}</div>
+                    </div>
+                @endif
+                @if($surgerySchedule->readinessUpdatedBy)
+                    <div class="text-muted small mb-3">
+                        Last updated by <span class="fw-semibold">{{ $surgerySchedule->readinessUpdatedBy->name }}</span>
+                        @if($surgerySchedule->readiness_updated_at)
+                            ({{ $surgerySchedule->readiness_updated_at->format('M d, Y h:i A') }})
+                        @endif
+                    </div>
+                @endif
+
+                @can('updateReadiness', $surgerySchedule)
+                    <form action="{{ route('surgery.schedules.readiness', $surgerySchedule) }}" method="POST" class="border-top pt-3">
+                        @csrf
+                        @method('PATCH')
+                        <div class="mb-2">
+                            <label for="readiness_status" class="form-label small fw-semibold mb-1">Update Readiness Status</label>
+                            <select name="readiness_status" id="readiness_status" class="form-select form-select-sm" required>
+                                @foreach(['Pending Prep', 'Preparing', 'Ready'] as $opt)
+                                    <option value="{{ $opt }}" {{ ($surgerySchedule->readiness_status ?? 'Pending Prep') === $opt ? 'selected' : '' }}>{{ $opt }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="mb-2">
+                            <label for="readiness_notes" class="form-label small fw-semibold mb-1">Operational / Prep Notes</label>
+                            <textarea name="readiness_notes" id="readiness_notes" rows="2" class="form-control form-control-sm" placeholder="Sterilization, equipment check, anesthesia prep...">{{ old('readiness_notes', $surgerySchedule->readiness_notes) }}</textarea>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-outline-primary w-100 fw-semibold">
+                            <i class="bi bi-check2-square me-1"></i>Save OR Readiness
+                        </button>
+                    </form>
+                @endcan
+            </div>
+        </div>
+
         <!-- Actions Panel -->
         <div class="card shadow-sm border-0" style="border-radius: 0.75rem; background: var(--card);">
             <div class="card-body p-4 d-flex flex-column gap-2">
-                @if(auth()->user()->hasAnyRole(['doctor','or-coordinator']))
+                @can('updateStatus', $surgerySchedule)
                     @if($surgerySchedule->status === 'Scheduled')
                         <form action="{{ route('surgery.schedules.start', ['surgerySchedule' => $surgerySchedule->id]) }}" method="POST">
                             @csrf
@@ -175,7 +226,7 @@
                         </form>
                     @endif
 
-                    @if($surgerySchedule->status !== 'Completed')
+                    @if($surgerySchedule->status === 'In Progress')
                         <form action="{{ route('surgery.schedules.complete', ['surgerySchedule' => $surgerySchedule->id]) }}" method="POST">
                             @csrf
                             @method('PATCH')
@@ -183,14 +234,24 @@
                                 <i class="bi bi-check-circle"></i> Mark Surgery Completed
                             </button>
                         </form>
-
-                        @if(auth()->user()->hasRole('or-coordinator'))
-                            <a href="{{ route('surgery.schedules.edit', ['surgerySchedule' => $surgerySchedule->id]) }}" class="btn btn-outline-primary w-100 fw-semibold d-flex align-items-center justify-content-center gap-2" style="border-radius: 0.5rem;">
-                                <i class="bi bi-pencil"></i> Edit Schedule
-                            </a>
-                        @endif
                     @endif
-                @endif
+                @endcan
+
+                @can('update', $surgerySchedule)
+                    <a href="{{ route('surgery.schedules.edit', ['surgerySchedule' => $surgerySchedule->id]) }}" class="btn btn-outline-primary w-100 fw-semibold d-flex align-items-center justify-content-center gap-2" style="border-radius: 0.5rem;">
+                        <i class="bi bi-pencil"></i> Edit / Reschedule
+                    </a>
+
+                    @if(in_array($surgerySchedule->status, ['Scheduled', 'Postponed']))
+                        <form action="{{ route('surgery.schedules.cancel', ['surgerySchedule' => $surgerySchedule->id]) }}" method="POST">
+                            @csrf
+                            @method('PATCH')
+                            <button type="submit" class="btn btn-outline-danger w-100 fw-semibold d-flex align-items-center justify-content-center gap-2" style="border-radius: 0.5rem;" data-confirm="Cancel this scheduled operation?">
+                                <i class="bi bi-x-circle"></i> Cancel Operation
+                            </button>
+                        </form>
+                    @endif
+                @endcan
 
                 <a href="{{ route('surgery.schedules.print', $surgerySchedule) }}" target="_blank" class="btn btn-outline-secondary w-100 fw-semibold d-flex align-items-center justify-content-center gap-2" style="border-radius: 0.5rem;">
                     <i class="bi bi-printer"></i> Print Schedule Document

@@ -12,19 +12,19 @@
     <div class="card-body p-3 workspace-header-body">
         <div class="workspace-header-title">
             <span class="badge bg-success bg-opacity-10 text-success fs-6 px-3 py-2">
-                <i class="bi bi-apple me-1"></i> Dietitian Operational Workspace
+                <i class="bi bi-apple me-1"></i> Diet &amp; Nutrition Clinical Workspace
             </span>
             <span class="text-muted small d-none d-md-inline dashboard-description">Manage therapeutic nutrition consultations, meal plans, and clinical diet requests.</span>
         </div>
         <div class="workspace-header-actions">
-            <a href="{{ route('diet.requests.index') }}" class="btn btn-sm btn-primary">
-                <i class="bi bi-journal-bookmark me-1"></i> Consultations Queue
+            <a href="{{ route('diet.plans.index') }}" class="btn btn-sm btn-primary">
+                <i class="bi bi-clipboard2-heart me-1"></i> Diet Plans Workspace
             </a>
-            @if(Route::has('diet.plans.index'))
-            <a href="{{ route('diet.plans.index') }}" class="btn btn-sm btn-outline-success">
-                <i class="bi bi-clipboard2-heart me-1"></i> Active Diet Plans
+            @can('create', \App\Models\DietRequest::class)
+            <a href="{{ route('diet.requests.create') }}" class="btn btn-sm btn-outline-success">
+                <i class="bi bi-journal-plus me-1"></i> New Diet Request
             </a>
-            @endif
+            @endcan
         </div>
     </div>
 </div>
@@ -202,7 +202,7 @@
                                 </td>
                                 <td><span class="text-muted small">{{ $plan->diet_type ?? 'Standard' }}</span></td>
                                 <td>
-                                    <span class="badge bg-{{ $plan->status === 'Active' ? 'success' : 'secondary' }}">
+                                    <span class="badge bg-{{ $plan->status === 'Revised' ? 'info' : ($plan->status === 'Active' ? 'success' : 'secondary') }}">
                                         {{ $plan->status }}
                                     </span>
                                 </td>

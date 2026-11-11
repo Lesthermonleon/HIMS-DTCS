@@ -26,6 +26,13 @@
                 <span class="badge bg-{{ $dietPlan->statusBadge }}">{{ $dietPlan->status }}</span>
             </div>
             <div class="card-body">
+                @if($dietPlan->assessment_notes)
+                    <div class="mb-4" id="nutrition-assessment">
+                        <h6 class="fw-bold text-secondary mb-2"><i class="bi bi-clipboard2-pulse me-1"></i>Nutrition Assessment &amp; Recommendations</h6>
+                        <div class="p-3 rounded bg-light border-start border-success border-4" style="white-space: pre-line; font-size: 0.9rem;">{{ $dietPlan->assessment_notes }}</div>
+                    </div>
+                @endif
+
                 <div class="mb-4">
                     <h6 class="fw-bold text-secondary mb-2">Instructions & Meal Guidelines</h6>
                     <div class="p-3 rounded bg-light border-start border-primary border-4" style="white-space: pre-line; font-size: 0.95rem;">
@@ -177,9 +184,23 @@
                         <span class="fw-semibold">{{ $dietPlan->end_date ? $dietPlan->end_date->format('M d, Y') : 'Ongoing' }}</span>
                     </div>
                     <div class="col-12 mt-2">
-                        <span class="text-muted d-block">Assigned Dietitian</span>
-                        <span class="fw-semibold">{{ $dietPlan->dietitian->name }}</span>
+                        <span class="text-muted d-block">Created By</span>
+                        <span class="fw-semibold">{{ $dietPlan->createdBy->name ?? ($dietPlan->dietitian->name ?? ($dietPlan->dietRequest->doctor->name ?? '—')) }}</span>
                     </div>
+                    @if($dietPlan->updatedBy)
+                        <div class="col-12">
+                            <span class="text-muted d-block">Last Updated By</span>
+                            <span class="fw-semibold">{{ $dietPlan->updatedBy->name }}</span>
+                            <small class="text-muted">({{ $dietPlan->updated_at?->format('M d, Y H:i') }})</small>
+                        </div>
+                    @endif
+                    @if($dietPlan->completedBy)
+                        <div class="col-12">
+                            <span class="text-muted d-block">Completed By</span>
+                            <span class="fw-semibold">{{ $dietPlan->completedBy->name }}</span>
+                            <small class="text-muted">({{ $dietPlan->completed_at?->format('M d, Y H:i') }})</small>
+                        </div>
+                    @endif
                 </div>
                 <hr>
                 <div class="d-flex justify-content-between">
@@ -193,19 +214,21 @@
         <div class="card">
             <div class="card-header"><i class="bi bi-gear me-2"></i>Available Actions</div>
             <div class="card-body d-flex flex-column gap-2">
-                @if($dietPlan->status === 'Active' && auth()->user()->hasRole('dietitian'))
+                @can('complete', $dietPlan)
                     <form method="POST" action="{{ route('diet.plans.complete', $dietPlan) }}">
                         @csrf @method('PATCH')
                         <button type="submit" class="btn btn-success w-100 text-start"><i class="bi bi-check-circle me-2"></i>Complete Diet Plan</button>
                     </form>
-                    
+                @endcan
+                @can('update', $dietPlan)
                     <a href="{{ route('diet.plans.edit', $dietPlan) }}" class="btn btn-outline-secondary w-100 text-start"><i class="bi bi-pencil me-2"></i>Edit Plan details</a>
-                    
+                @endcan
+                @can('delete', $dietPlan)
                     <form method="POST" action="{{ route('diet.plans.destroy', $dietPlan) }}" onsubmit="return confirm('DANGER: This will delete the diet plan and revert the request status back to Pending. Do you want to proceed?');">
                         @csrf @method('DELETE')
                         <button type="submit" class="btn btn-outline-danger w-100 text-start"><i class="bi bi-trash me-2"></i>Delete/Revert Plan</button>
                     </form>
-                @endif
+                @endcan
                 <a href="{{ route('diet.plans.print', $dietPlan) }}" target="_blank" class="btn btn-outline-secondary w-100 text-start"><i class="bi bi-printer me-2"></i>Print Diet Plan</a>
                 <a href="{{ route('diet.plans.index') }}" class="btn btn-outline-secondary w-100 text-start"><i class="bi bi-chevron-left me-2"></i>Back to Plans</a>
             </div>

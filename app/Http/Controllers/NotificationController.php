@@ -53,7 +53,7 @@ class NotificationController extends Controller
 
     /**
      * View Notification Center page.
-     */
+     */ 
     public function index(Request $request): View
     {
         $query = Notification::forUser($request->user()->id)->latest();

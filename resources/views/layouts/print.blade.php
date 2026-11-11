@@ -199,12 +199,26 @@
 
     <!-- Main Printable Document Sheet -->
     <div class="print-container">
+        @php
+            $hospitalName = app(\App\Services\Settings\SettingsService::class)->get('hospital.name', 'Diagnostic, Treatment & Clinical Services');
+            $hospitalTagline = app(\App\Services\Settings\SettingsService::class)->get('hospital.tagline', 'Hospital Information Management System (HIMS)');
+            $hospitalAddress = app(\App\Services\Settings\SettingsService::class)->get('hospital.address');
+            $hospitalPhone = app(\App\Services\Settings\SettingsService::class)->get('hospital.phone');
+        @endphp
         <!-- Hospital Header -->
         <div class="hospital-header d-flex justify-content-between align-items-start">
-            <div>
-                <div class="hospital-title">Diagnostic, Treatment & Clinical Services</div>
-                <div class="hospital-subtitle">Hospital Information Management System (HIMS)</div>
-                <div class="text-muted small mt-1">@yield('department', 'Clinical Department')</div>
+            <div class="d-flex align-items-center gap-3">
+                <img src="{{ route('branding.logo') }}" alt="Logo" style="height: 48px; max-width: 120px; object-fit: contain;" onerror="this.style.display='none'">
+                <div>
+                    <div class="hospital-title">{{ $hospitalName }}</div>
+                    <div class="hospital-subtitle">{{ $hospitalTagline }}</div>
+                    @if($hospitalAddress || $hospitalPhone)
+                        <div class="text-muted small" style="font-size: 10px;">
+                            {{ implode(' · ', array_filter([$hospitalAddress, $hospitalPhone])) }}
+                        </div>
+                    @endif
+                    <div class="text-muted small mt-1">@yield('department', 'Clinical Department')</div>
+                </div>
             </div>
             <div class="text-end">
                 <div class="doc-badge">@yield('document-title', 'CLINICAL RECORD')</div>

@@ -24,7 +24,15 @@ class PatientPolicy
      */
     public function view(User $user, Patient $patient): bool
     {
-        return $user->canAccessPatients();
+        if (! $user->canAccessPatients()) {
+            return false;
+        }
+
+        if ($user->hasRole('doctor') && ! $user->isAdmin()) {
+            return $patient->isAuthorizedForDoctor($user);
+        }
+
+        return true;
     }
 
 

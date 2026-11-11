@@ -27,15 +27,18 @@ return Application::configure(basePath: dirname(__DIR__))
                 | SymfonyRequest::HEADER_X_FORWARDED_PROTO
         );
 
-        // Enforce single active session & session inactivity lock checks on web requests
+        // Enforce single active session, session inactivity timeout & session lock checks on web requests
         $middleware->web(append: [
             EnsureSingleSessionActive::class,
+            \App\Http\Middleware\EnsureSessionInactivity::class,
             EnsureSessionUnlocked::class,
+            \App\Http\Middleware\EnsureMaintenanceMode::class,
         ]);
 
         // Register route middleware aliases
         $middleware->alias([
             'role'         => RoleMiddleware::class,
+            'permission'   => \App\Http\Middleware\EnsurePermission::class,
             'otp.verified' => EnsureOtpVerified::class,
         ]);
     })

@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS `users` (
     `name`              VARCHAR(255)    NOT NULL,
     `employee_id`       VARCHAR(255)    NULL DEFAULT NULL,
     `department`        VARCHAR(255)    NULL DEFAULT NULL,
+    `patient_id`        BIGINT UNSIGNED NULL DEFAULT NULL COMMENT 'Optional link to patient profile for Patient Portal users',
     `phone`             VARCHAR(20)     NULL DEFAULT NULL,
     `avatar`            VARCHAR(255)    NULL DEFAULT NULL,
     `is_active`         TINYINT(1)      NOT NULL DEFAULT 1,
@@ -164,6 +165,7 @@ CREATE TABLE IF NOT EXISTS `permission_role` (
 CREATE TABLE IF NOT EXISTS `patients` (
     `id`                      BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     `patient_no`              VARCHAR(255)    NOT NULL,
+    `user_id`                 BIGINT UNSIGNED NULL DEFAULT NULL COMMENT 'Optional link to portal user account',
     `first_name`              VARCHAR(255)    NOT NULL,
     `last_name`               VARCHAR(255)    NOT NULL,
     `middle_name`             VARCHAR(255)    NULL DEFAULT NULL,
@@ -493,17 +495,24 @@ CREATE TABLE IF NOT EXISTS `surgical_team_members` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `surgery_schedules` (
-    `id`                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    `surgery_request_id`  BIGINT UNSIGNED NOT NULL,
-    `operating_room_id`   BIGINT UNSIGNED NOT NULL,
-    `surgical_team_id`    BIGINT UNSIGNED NOT NULL,
-    `scheduled_by`        BIGINT UNSIGNED NOT NULL,
-    `scheduled_at`        TIMESTAMP       NOT NULL,
-    `duration_minutes`    INT             NOT NULL DEFAULT 60,
-    `status`              ENUM('Scheduled','In Progress','Completed','Cancelled','Postponed') NOT NULL DEFAULT 'Scheduled',
-    `notes`               TEXT            NULL,
-    `created_at`          TIMESTAMP       NULL DEFAULT NULL,
-    `updated_at`          TIMESTAMP       NULL DEFAULT NULL,
+    `id`                   BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `surgery_request_id`   BIGINT UNSIGNED NOT NULL,
+    `operating_room_id`    BIGINT UNSIGNED NOT NULL,
+    `surgical_team_id`     BIGINT UNSIGNED NULL DEFAULT NULL,
+    `scheduled_by`         BIGINT UNSIGNED NOT NULL,
+    `scheduled_at`         TIMESTAMP       NOT NULL,
+    `duration_minutes`     INT             NOT NULL DEFAULT 60,
+    `status`               ENUM('Scheduled','In Progress','Completed','Cancelled','Postponed') NOT NULL DEFAULT 'Scheduled',
+    `actual_start`              TIMESTAMP       NULL DEFAULT NULL,
+    `actual_end`                TIMESTAMP       NULL DEFAULT NULL,
+    `previous_readiness_status` VARCHAR(32)     NULL DEFAULT NULL,
+    `readiness_status`          ENUM('Pending Prep','Preparing','Ready') NOT NULL DEFAULT 'Pending Prep',
+    `readiness_notes`           TEXT            NULL,
+    `readiness_updated_by`      BIGINT UNSIGNED NULL DEFAULT NULL,
+    `readiness_updated_at`      TIMESTAMP       NULL DEFAULT NULL,
+    `notes`                TEXT            NULL,
+    `created_at`           TIMESTAMP       NULL DEFAULT NULL,
+    `updated_at`           TIMESTAMP       NULL DEFAULT NULL,
     PRIMARY KEY (`id`),
     KEY `surgery_schedules_surgery_request_id_foreign` (`surgery_request_id`),
     KEY `surgery_schedules_operating_room_id_foreign` (`operating_room_id`),
@@ -549,6 +558,7 @@ CREATE TABLE IF NOT EXISTS `diet_plans` (
     `diet_request_id` BIGINT UNSIGNED NOT NULL,
     `dietitian_id`    BIGINT UNSIGNED NOT NULL,
     `plan_details`    TEXT            NOT NULL,
+    `assessment_notes` TEXT           NULL,
     `total_calories`  INT             NULL DEFAULT NULL,
     `protein_grams`   DECIMAL(8,2)    NULL DEFAULT NULL,
     `carb_grams`      DECIMAL(8,2)    NULL DEFAULT NULL,
@@ -557,6 +567,9 @@ CREATE TABLE IF NOT EXISTS `diet_plans` (
     `end_date`        DATE            NULL DEFAULT NULL,
     `status`          ENUM('Active','Completed','Revised') NOT NULL DEFAULT 'Active',
     `notes`           TEXT            NULL,
+    `updated_by`      BIGINT UNSIGNED NULL DEFAULT NULL,
+    `completed_by`    BIGINT UNSIGNED NULL DEFAULT NULL,
+    `completed_at`    TIMESTAMP       NULL DEFAULT NULL,
     `created_at`      TIMESTAMP       NULL DEFAULT NULL,
     `updated_at`      TIMESTAMP       NULL DEFAULT NULL,
     PRIMARY KEY (`id`),
@@ -722,6 +735,325 @@ CREATE TABLE IF NOT EXISTS `otp_verifications` (
     CONSTRAINT `otp_verifications_user_id_foreign`
         FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
         ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- SYSTEM SETTINGS (typed, scoped, JSON-encoded; NEVER holds secrets)
+-- ════════════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS `system_settings` (
+    `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `setting_key` VARCHAR(100)    NOT NULL,
+    `scope`       VARCHAR(20)     NOT NULL COMMENT 'super_admin | admin',
+    `value`       LONGTEXT        NULL COMMENT 'JSON-encoded typed value. Never a secret.',
+    `updated_by`  BIGINT UNSIGNED NULL DEFAULT NULL,
+    `created_at`  TIMESTAMP       NULL DEFAULT NULL,
+    `updated_at`  TIMESTAMP       NULL DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `system_settings_key_unique` (`setting_key`),
+    KEY `system_settings_updated_by_index` (`updated_by`),
+    CONSTRAINT `system_settings_updated_by_foreign` FOREIGN KEY (`updated_by`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `setting_histories` (
+    `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `setting_key` VARCHAR(100)    NOT NULL,
+    `scope`       VARCHAR(20)     NOT NULL,
+    `old_value`   LONGTEXT        NULL,
+    `new_value`   LONGTEXT        NULL,
+    `changed_by`  BIGINT UNSIGNED NULL DEFAULT NULL,
+    `reason`      VARCHAR(500)    NULL DEFAULT NULL,
+    `ip_address`  VARCHAR(45)     NULL DEFAULT NULL,
+    `created_at`  TIMESTAMP       NULL DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    KEY `setting_histories_key_index` (`setting_key`, `created_at`),
+    KEY `setting_histories_changed_by_index` (`changed_by`),
+    CONSTRAINT `setting_histories_changed_by_foreign` FOREIGN KEY (`changed_by`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- MASTER CATALOG (service definitions + lifecycle/version history)
+-- NOTE: catalog entries are DEFINITIONS. They are not prescriptions, orders,
+--       or completed results; those remain in their own module tables.
+-- ════════════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS `catalog_services` (
+    `id`             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `code`           VARCHAR(30)     NOT NULL,
+    `name`           VARCHAR(255)    NOT NULL,
+    `module`         ENUM('LIS','RIS','PMS','SORS','DNMS') NOT NULL,
+    `category`       VARCHAR(100)    NULL DEFAULT NULL,
+    `description`    TEXT            NULL,
+    `base_price`     DECIMAL(12,2)   NULL DEFAULT NULL,
+    `status`         ENUM('draft','active','inactive','retired') NOT NULL DEFAULT 'draft',
+    `effective_from` DATE            NULL DEFAULT NULL,
+    `effective_to`   DATE            NULL DEFAULT NULL,
+    `version`        INT UNSIGNED    NOT NULL DEFAULT 1,
+    `created_by`     BIGINT UNSIGNED NULL DEFAULT NULL,
+    `updated_by`     BIGINT UNSIGNED NULL DEFAULT NULL,
+    `created_at`     TIMESTAMP       NULL DEFAULT NULL,
+    `updated_at`     TIMESTAMP       NULL DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `catalog_services_code_unique` (`code`),
+    KEY `catalog_services_module_status_index` (`module`, `status`),
+    CONSTRAINT `catalog_services_created_by_foreign` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT `catalog_services_updated_by_foreign` FOREIGN KEY (`updated_by`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Lifecycle metadata for existing `lab_tests` rows, kept in a side table so the
+-- live LIS tables are NOT altered.
+CREATE TABLE IF NOT EXISTS `catalog_item_states` (
+    `id`             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `entity_type`    VARCHAR(30)     NOT NULL COMMENT 'lab_test',
+    `entity_id`      BIGINT UNSIGNED NOT NULL,
+    `status`         ENUM('active','inactive','retired') NOT NULL DEFAULT 'active',
+    `description`    TEXT            NULL,
+    `effective_from` DATE            NULL DEFAULT NULL,
+    `effective_to`   DATE            NULL DEFAULT NULL,
+    `version`        INT UNSIGNED    NOT NULL DEFAULT 1,
+    `retired_at`     TIMESTAMP       NULL DEFAULT NULL,
+    `updated_by`     BIGINT UNSIGNED NULL DEFAULT NULL,
+    `created_at`     TIMESTAMP       NULL DEFAULT NULL,
+    `updated_at`     TIMESTAMP       NULL DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `catalog_item_states_entity_unique` (`entity_type`, `entity_id`),
+    CONSTRAINT `catalog_item_states_updated_by_foreign` FOREIGN KEY (`updated_by`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `catalog_change_histories` (
+    `id`              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `entity_type`     VARCHAR(30)     NOT NULL COMMENT 'lab_test | service',
+    `entity_id`       BIGINT UNSIGNED NOT NULL,
+    `version`         INT UNSIGNED    NOT NULL,
+    `action`          VARCHAR(30)     NOT NULL COMMENT 'created | updated | activated | deactivated | retired',
+    `before_snapshot` LONGTEXT        NULL,
+    `after_snapshot`  LONGTEXT        NULL,
+    `reason`          VARCHAR(500)    NULL DEFAULT NULL,
+    `changed_by`      BIGINT UNSIGNED NULL DEFAULT NULL,
+    `created_at`      TIMESTAMP       NULL DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    KEY `catalog_change_histories_entity_index` (`entity_type`, `entity_id`, `version`),
+    CONSTRAINT `catalog_change_histories_changed_by_foreign` FOREIGN KEY (`changed_by`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- CLINICAL CODE MASTER (ICD / CPT / LOINC) — import framework only.
+-- NO official codes are seeded. Datasets must be obtained under licence.
+-- ════════════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS `clinical_code_systems` (
+    `id`                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `system_key`          VARCHAR(20)     NOT NULL COMMENT 'ICD-11 | CPT | LOINC',
+    `name`                VARCHAR(150)    NOT NULL,
+    `kind`                ENUM('diagnosis','procedure','observation') NOT NULL,
+    `license_status`      ENUM('unverified','verified') NOT NULL DEFAULT 'unverified',
+    `license_reference`   VARCHAR(255)    NULL DEFAULT NULL,
+    `license_notes`       TEXT            NULL,
+    `jurisdiction`        VARCHAR(100)    NULL DEFAULT NULL,
+    `license_verified_by` BIGINT UNSIGNED NULL DEFAULT NULL,
+    `license_verified_at` TIMESTAMP       NULL DEFAULT NULL,
+    `active_version_id`   BIGINT UNSIGNED NULL DEFAULT NULL,
+    `created_at`          TIMESTAMP       NULL DEFAULT NULL,
+    `updated_at`          TIMESTAMP       NULL DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `clinical_code_systems_key_unique` (`system_key`),
+    CONSTRAINT `clinical_code_systems_verified_by_foreign` FOREIGN KEY (`license_verified_by`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `clinical_code_versions` (
+    `id`                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `system_id`         BIGINT UNSIGNED NOT NULL,
+    `version_label`     VARCHAR(50)     NOT NULL,
+    `effective_date`    DATE            NULL DEFAULT NULL,
+    `status`            ENUM('staged','published','superseded','rolled_back') NOT NULL DEFAULT 'staged',
+    `source_filename`   VARCHAR(255)    NOT NULL,
+    `source_sha256`     CHAR(64)        NOT NULL,
+    `total_rows`        INT UNSIGNED    NOT NULL DEFAULT 0,
+    `valid_rows`        INT UNSIGNED    NOT NULL DEFAULT 0,
+    `invalid_rows`      INT UNSIGNED    NOT NULL DEFAULT 0,
+    `duplicate_rows`    INT UNSIGNED    NOT NULL DEFAULT 0,
+    `validation_report` LONGTEXT        NULL,
+    `imported_by`       BIGINT UNSIGNED NULL DEFAULT NULL,
+    `published_by`      BIGINT UNSIGNED NULL DEFAULT NULL,
+    `published_at`      TIMESTAMP       NULL DEFAULT NULL,
+    `rolled_back_at`    TIMESTAMP       NULL DEFAULT NULL,
+    `rollback_reason`   VARCHAR(500)    NULL DEFAULT NULL,
+    `created_at`        TIMESTAMP       NULL DEFAULT NULL,
+    `updated_at`        TIMESTAMP       NULL DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `clinical_code_versions_system_label_unique` (`system_id`, `version_label`),
+    KEY `clinical_code_versions_sha_index` (`system_id`, `source_sha256`),
+    CONSTRAINT `clinical_code_versions_system_id_foreign` FOREIGN KEY (`system_id`) REFERENCES `clinical_code_systems` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT `clinical_code_versions_imported_by_foreign` FOREIGN KEY (`imported_by`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT `clinical_code_versions_published_by_foreign` FOREIGN KEY (`published_by`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `clinical_codes` (
+    `id`         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `version_id` BIGINT UNSIGNED NOT NULL,
+    `system_id`  BIGINT UNSIGNED NOT NULL,
+    `code`       VARCHAR(40)     NOT NULL,
+    `display`    VARCHAR(500)    NOT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `clinical_codes_version_code_unique` (`version_id`, `code`),
+    KEY `clinical_codes_system_code_index` (`system_id`, `code`),
+    CONSTRAINT `clinical_codes_version_id_foreign` FOREIGN KEY (`version_id`) REFERENCES `clinical_code_versions` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT `clinical_codes_system_id_foreign`  FOREIGN KEY (`system_id`)  REFERENCES `clinical_code_systems` (`id`)  ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- BACKUP JOB HISTORY
+-- ════════════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS `backup_runs` (
+    `id`              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `trigger_type`    ENUM('manual','scheduled','cli') NOT NULL DEFAULT 'manual',
+    `status`          ENUM('queued','running','success','failed') NOT NULL DEFAULT 'queued',
+    `file_path`       VARCHAR(500)    NULL DEFAULT NULL COMMENT 'Relative to the private local disk. Not web-accessible.',
+    `file_size`       BIGINT UNSIGNED NULL DEFAULT NULL,
+    `checksum_sha256` CHAR(64)        NULL DEFAULT NULL,
+    `started_at`      TIMESTAMP       NULL DEFAULT NULL,
+    `finished_at`     TIMESTAMP       NULL DEFAULT NULL,
+    `error_summary`   VARCHAR(1000)   NULL DEFAULT NULL,
+    `pruned_at`       TIMESTAMP       NULL DEFAULT NULL,
+    `triggered_by`    BIGINT UNSIGNED NULL DEFAULT NULL,
+    `created_at`      TIMESTAMP       NULL DEFAULT NULL,
+    `updated_at`      TIMESTAMP       NULL DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    KEY `backup_runs_status_index` (`status`, `created_at`),
+    CONSTRAINT `backup_runs_triggered_by_foreign` FOREIGN KEY (`triggered_by`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- PRIVILEGED ACCESS REQUESTS (e.g. Admin asks Super Admin to authorise a Doctor)
+-- ════════════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS `privileged_access_requests` (
+    `id`               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `request_type`     VARCHAR(40)     NOT NULL COMMENT 'doctor_provisioning',
+    `payload`          LONGTEXT        NULL COMMENT 'JSON, non-secret',
+    `status`           ENUM('pending','approved','rejected','failed') NOT NULL DEFAULT 'pending',
+    `requested_by`     BIGINT UNSIGNED NULL DEFAULT NULL,
+    `requested_reason` VARCHAR(500)    NULL DEFAULT NULL,
+    `decided_by`       BIGINT UNSIGNED NULL DEFAULT NULL,
+    `decided_at`       TIMESTAMP       NULL DEFAULT NULL,
+    `decision_reason`  VARCHAR(500)    NULL DEFAULT NULL,
+    `result_user_id`   BIGINT UNSIGNED NULL DEFAULT NULL,
+    `created_at`       TIMESTAMP       NULL DEFAULT NULL,
+    `updated_at`       TIMESTAMP       NULL DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    KEY `privileged_access_requests_status_index` (`status`, `created_at`),
+    CONSTRAINT `par_requested_by_foreign`  FOREIGN KEY (`requested_by`)   REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT `par_decided_by_foreign`    FOREIGN KEY (`decided_by`)     REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT `par_result_user_id_foreign` FOREIGN KEY (`result_user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- FINANCIAL CONFIGURATION FOUNDATION (no billing module exists yet)
+-- Effective-dated and immutable: a new rule is a NEW row; old rows are never
+-- rewritten, so historical documents can always be re-derived.
+-- ════════════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS `financial_rules` (
+    `id`                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `currency_code`       CHAR(3)         NOT NULL,
+    `currency_symbol`     VARCHAR(8)      NOT NULL,
+    `tax_name`            VARCHAR(60)     NULL DEFAULT NULL,
+    `tax_rate`            DECIMAL(7,4)    NOT NULL DEFAULT 0.0000,
+    `service_charge_rate` DECIMAL(7,4)    NOT NULL DEFAULT 0.0000,
+    `applies_to`          ENUM('none','selected_services') NOT NULL DEFAULT 'none',
+    `notes`               VARCHAR(500)    NULL DEFAULT NULL,
+    `effective_from`      DATE            NOT NULL,
+    `created_by`          BIGINT UNSIGNED NULL DEFAULT NULL,
+    `created_at`          TIMESTAMP       NULL DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    KEY `financial_rules_effective_from_index` (`effective_from`),
+    CONSTRAINT `financial_rules_created_by_foreign` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- QUEUE TICKET FOUNDATION (no ticket generation exists yet)
+-- Atomic per-day sequence; unique ticket numbers enforced by the database.
+-- ════════════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS `queue_sequences` (
+    `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `queue_type`  VARCHAR(20)     NOT NULL COMMENT 'diagnostic | treatment',
+    `ticket_date` DATE            NOT NULL,
+    `last_number` INT UNSIGNED    NOT NULL DEFAULT 0,
+    `updated_at`  TIMESTAMP       NULL DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `queue_sequences_type_date_unique` (`queue_type`, `ticket_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `queue_tickets` (
+    `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `queue_type`  VARCHAR(20)     NOT NULL,
+    `ticket_date` DATE            NOT NULL,
+    `sequence`    INT UNSIGNED    NOT NULL,
+    `prefix`      VARCHAR(10)     NOT NULL COMMENT 'Prefix as issued; later prefix changes never rewrite this',
+    `ticket_no`   VARCHAR(32)     NOT NULL,
+    `issued_by`   BIGINT UNSIGNED NULL DEFAULT NULL,
+    `created_at`  TIMESTAMP       NULL DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `queue_tickets_type_date_seq_unique` (`queue_type`, `ticket_date`, `sequence`),
+    UNIQUE KEY `queue_tickets_date_no_unique` (`ticket_date`, `ticket_no`),
+    CONSTRAINT `queue_tickets_issued_by_foreign` FOREIGN KEY (`issued_by`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- OUTPATIENT APPOINTMENTS & SCHEDULING ENGINE
+-- ════════════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS `appointments` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `appointment_no` VARCHAR(64) NOT NULL UNIQUE,
+  `patient_id` BIGINT UNSIGNED NOT NULL,
+  `doctor_id` BIGINT UNSIGNED NOT NULL,
+  `department` VARCHAR(128) NULL,
+  `scheduled_at` DATETIME NOT NULL,
+  `duration_minutes` INT UNSIGNED NOT NULL DEFAULT 30,
+  `type` VARCHAR(64) NOT NULL DEFAULT 'In-Person Consultation',
+  `reason` TEXT NULL,
+  `notes` TEXT NULL,
+  `status` ENUM('Requested', 'Confirmed', 'CheckedIn', 'In Consultation', 'Completed', 'Cancelled', 'No Show') NOT NULL DEFAULT 'Requested',
+  `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted_at` TIMESTAMP NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  INDEX `idx_appointments_patient` (`patient_id`),
+  INDEX `idx_appointments_doctor` (`doctor_id`),
+  INDEX `idx_appointments_schedule` (`scheduled_at`, `status`),
+  CONSTRAINT `fk_appointments_patient` FOREIGN KEY (`patient_id`) REFERENCES `patients` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_appointments_doctor` FOREIGN KEY (`doctor_id`) REFERENCES `users` (`id`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- OPERATIONAL INVOICING & BILLING LEDGER
+-- ════════════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS `invoices` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `invoice_no` VARCHAR(64) NOT NULL UNIQUE,
+  `patient_id` BIGINT UNSIGNED NOT NULL,
+  `appointment_id` BIGINT UNSIGNED NULL,
+  `description` VARCHAR(255) NOT NULL,
+  `total_amount` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  `paid_amount` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  `balance` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  `status` ENUM('Unpaid', 'Partially Paid', 'Paid', 'Voided') NOT NULL DEFAULT 'Unpaid',
+  `payment_method` VARCHAR(64) NULL,
+  `payment_reference` VARCHAR(128) NULL,
+  `paid_at` DATETIME NULL,
+  `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted_at` TIMESTAMP NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  INDEX `idx_invoices_patient` (`patient_id`),
+  INDEX `idx_invoices_status` (`status`),
+  CONSTRAINT `fk_invoices_patient` FOREIGN KEY (`patient_id`) REFERENCES `patients` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_invoices_appointment` FOREIGN KEY (`appointment_id`) REFERENCES `appointments` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ════════════════════════════════════════════════════════════════════════════

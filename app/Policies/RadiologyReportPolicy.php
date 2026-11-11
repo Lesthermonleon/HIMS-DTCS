@@ -23,27 +23,51 @@ class RadiologyReportPolicy
      */
     public function view(User $user, RadiologyReport $radiologyReport): bool
     {
-        return $user->hasAnyRole(['admin', 'radiologist', 'doctor', 'rad-tech']);
+        if ($user->hasRole('doctor') && ! $user->hasAnyRole(['admin', 'super_admin'])) {
+            // Doctors can only view Approved or Released reports for their own patients
+            return in_array($radiologyReport->status, ['Approved', 'Released'], true)
+                && $radiologyReport->radiologyRequest?->doctor_id === $user->id;
+        }
+
+        return $user->hasAnyRole(['admin', 'super_admin', 'radiologist', 'rad-tech']);
     }
 
     /**
-     * Determine whether the user can create radiology reports (Radiologists only).
+     * Determine whether the user can create radiology reports.
+     * Radiologists create reports; Radiology Staff can prepare preliminary draft reports when authorized.
      */
     public function create(User $user): bool
     {
-        return $user->hasRole('radiologist');
+        if ($user->hasRole('radiologist')) {
+            return true;
+        }
+
+        if ($user->hasRole('rad-tech') && $user->hasPermission('ris.reports.prepare')) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
-     * Determine whether the user can edit/update a radiology report (Radiologists when not Released).
+     * Determine whether the user can edit/update a radiology report.
+     * Allowed only while in Draft status. Approved/Released reports cannot be modified.
      */
     public function update(User $user, RadiologyReport $radiologyReport): bool
     {
-        if ($radiologyReport->status === 'Released') {
+        if ($radiologyReport->status !== 'Draft') {
             return false;
         }
 
-        return $user->hasRole('radiologist');
+        if ($user->hasRole('radiologist')) {
+            return true;
+        }
+
+        if ($user->hasRole('rad-tech') && $user->hasPermission('ris.reports.prepare')) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -59,7 +83,7 @@ class RadiologyReportPolicy
     }
 
     /**
-     * Determine whether the user can approve/finalize a report (Radiologists when Draft).
+     * Determine whether the user can approve/finalize a report (Radiologists only, when Draft).
      */
     public function approve(User $user, RadiologyReport $radiologyReport): bool
     {
@@ -76,6 +100,18 @@ class RadiologyReportPolicy
     public function release(User $user, RadiologyReport $radiologyReport): bool
     {
         if ($radiologyReport->status !== 'Approved') {
+            return false;
+        }
+
+        return $user->hasRole('radiologist');
+    }
+
+    /**
+     * Determine whether the user can return a draft report for correction (Radiologists when Draft).
+     */
+    public function returnForCorrection(User $user, RadiologyReport $radiologyReport): bool
+    {
+        if ($radiologyReport->status !== 'Draft') {
             return false;
         }
 

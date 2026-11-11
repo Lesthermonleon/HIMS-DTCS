@@ -44,11 +44,11 @@
             <a href="{{ route('surgery.calendar') }}" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1.5" style="border-radius: 0.5rem; font-weight: 500;">
                 <i class="bi bi-calendar-week"></i> Calendar View
             </a>
-            @if(auth()->user()->hasRole('or-coordinator'))
+            @can('create', \App\Models\SurgerySchedule::class)
                 <a href="{{ route('surgery.schedules.create') }}" class="btn btn-sm btn-primary px-3 fw-semibold d-flex align-items-center gap-1.5" style="border-radius: 0.5rem;">
                     <i class="bi bi-plus-circle"></i> Schedule Surgery
                 </a>
-            @endif
+            @endcan
         </div>
     </div>
 
@@ -100,6 +100,11 @@
                                 <span class="badge bg-{{ $sched->status === 'Completed' ? 'success' : ($sched->status === 'Scheduled' ? 'primary' : ($sched->status === 'In Progress' ? 'warning text-dark' : ($sched->status === 'Postponed' ? 'secondary' : 'danger'))) }}" style="font-weight: 600; padding: 0.4em 0.85em;">
                                     {{ $sched->status }}
                                 </span>
+                                <div class="mt-1">
+                                    <span class="badge bg-light text-dark border" style="font-size: 0.7rem;">
+                                        OR Prep: {{ $sched->readiness_status ?? 'Pending Prep' }}
+                                    </span>
+                                </div>
                             </td>
                             <td class="pe-4 text-end text-nowrap">
                                 @php
@@ -113,7 +118,7 @@
                                             'text_class' => 'text-primary'
                                         ]
                                     ];
-                                    if ($sched->status === 'Scheduled' && auth()->user()?->hasAnyRole(['doctor','or-coordinator'])) {
+                                    if ($sched->status === 'Scheduled' && auth()->user()?->can('updateStatus', $sched)) {
                                         $rowActions[] = [
                                             'type' => 'form',
                                             'url' => route('surgery.schedules.start', $sched),
@@ -124,7 +129,7 @@
                                             'text_class' => 'text-warning'
                                         ];
                                     }
-                                    if ($sched->status === 'In Progress' && auth()->user()?->hasAnyRole(['doctor','or-coordinator'])) {
+                                    if ($sched->status === 'In Progress' && auth()->user()?->can('updateStatus', $sched)) {
                                         $rowActions[] = [
                                             'type' => 'form',
                                             'url' => route('surgery.schedules.complete', $sched),
@@ -135,7 +140,7 @@
                                             'text_class' => 'text-success'
                                         ];
                                     }
-                                    if ($sched->status !== 'Completed' && auth()->user()?->hasRole('or-coordinator')) {
+                                    if (auth()->user()?->can('update', $sched)) {
                                         $rowActions[] = [
                                             'type' => 'link',
                                             'url' => route('surgery.schedules.edit', $sched),
@@ -145,7 +150,7 @@
                                             'text_class' => 'text-secondary'
                                         ];
                                     }
-                                    if ($sched->status !== 'Completed' && auth()->user()?->hasRole('or-coordinator')) {
+                                    if (auth()->user()?->can('delete', $sched)) {
                                         $rowActions[] = [
                                             'type' => 'form',
                                             'url' => route('surgery.schedules.destroy', $sched),

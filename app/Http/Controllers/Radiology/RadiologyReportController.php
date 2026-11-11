@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Radiology;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreRadiologyReportRequest;
+use App\Models\ActivityLog;
 use App\Models\RadiologyReport;
 use App\Models\RadiologyRequest;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -20,9 +22,16 @@ class RadiologyReportController extends Controller
     {
         $this->authorize('viewAny', RadiologyReport::class);
 
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
         $query = RadiologyReport::with('radiologyRequest.patient', 'radiologyRequest.doctor', 'radiologist');
 
-        if ($status = $request->input('status')) {
+        if ($user && $user->hasRole('doctor') && ! $user->hasAnyRole(['admin', 'super_admin'])) {
+            // Doctors can only view Approved or Released reports for their own patients
+            $query->whereIn('status', ['Approved', 'Released'])
+                  ->whereHas('radiologyRequest', fn($q) => $q->where('doctor_id', $user->id));
+        } elseif ($status = $request->input('status')) {
             $query->where('status', $status);
         }
 
@@ -41,25 +50,55 @@ class RadiologyReportController extends Controller
                            ->with('patient', 'images')
                            ->get();
 
+        $radiologists = User::whereHas('roles', fn($q) => $q->where('slug', 'radiologist'))
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
         $selectedRequestId = $request->input('radiology_request_id');
 
-        return view('radiology.reports.create', compact('pendingRequests', 'selectedRequestId'));
+        return view('radiology.reports.create', compact('pendingRequests', 'selectedRequestId', 'radiologists'));
     }
 
     public function store(StoreRadiologyReportRequest $request): RedirectResponse
     {
         $this->authorize('create', RadiologyReport::class);
 
-        $report = RadiologyReport::create(array_merge($request->validated(), [
-            'radiologist_id' => Auth::id(),
-            'status'         => 'Draft',
-        ]));
+        /** @var User $user */
+        $user = Auth::user();
+
+        $data = $request->validated();
+        if ($user->hasRole('radiologist')) {
+            $data['radiologist_id'] = $user->id;
+        } elseif ($request->filled('radiologist_id')) {
+            $data['radiologist_id'] = $request->input('radiologist_id');
+        } else {
+            $defaultRad = User::whereHas('roles', fn($q) => $q->where('slug', 'radiologist'))
+                ->where('is_active', true)
+                ->first();
+            $data['radiologist_id'] = $defaultRad?->id ?? $user->id;
+        }
+
+        $data['status'] = 'Draft';
+
+        $report = RadiologyReport::create($data);
 
         // Ensure radiology request is marked as completed if it wasn't already
         $radReq = RadiologyRequest::find($request->radiology_request_id);
         if ($radReq && $radReq->status !== 'Completed') {
             $radReq->update(['status' => 'Completed', 'completed_at' => now()]);
         }
+
+        ActivityLog::create([
+            'user_id'       => Auth::id(),
+            'action'        => 'Radiology Report Prepared',
+            'module'        => 'Radiology',
+            'description'   => "Draft diagnostic radiology report prepared for request [{$radReq?->request_no}] by {$user->name}.",
+            'loggable_type' => RadiologyReport::class,
+            'loggable_id'   => $report->id,
+            'ip_address'    => request()->ip(),
+            'logged_at'     => now(),
+        ]);
 
         return redirect()->route('radiology.reports.show', $report)
                          ->with('success', 'Diagnostic radiology report created successfully as Draft.');
@@ -87,6 +126,17 @@ class RadiologyReportController extends Controller
 
         $radiologyReport->update($request->validated());
 
+        ActivityLog::create([
+            'user_id'       => Auth::id(),
+            'action'        => 'Radiology Report Updated',
+            'module'        => 'Radiology',
+            'description'   => "Radiology report #{$radiologyReport->id} was updated.",
+            'loggable_type' => RadiologyReport::class,
+            'loggable_id'   => $radiologyReport->id,
+            'ip_address'    => request()->ip(),
+            'logged_at'     => now(),
+        ]);
+
         return redirect()->route('radiology.reports.show', $radiologyReport)
                          ->with('success', 'Radiology report updated successfully.');
     }
@@ -111,6 +161,17 @@ class RadiologyReportController extends Controller
             'approved_at' => now(),
         ]);
 
+        ActivityLog::create([
+            'user_id'       => Auth::id(),
+            'action'        => 'Radiology Report Approved',
+            'module'        => 'Radiology',
+            'description'   => "Radiology report #{$radiologyReport->id} approved and finalized by Radiologist.",
+            'loggable_type' => RadiologyReport::class,
+            'loggable_id'   => $radiologyReport->id,
+            'ip_address'    => request()->ip(),
+            'logged_at'     => now(),
+        ]);
+
         return back()->with('success', 'Radiology report approved and finalized.');
     }
 
@@ -124,7 +185,50 @@ class RadiologyReportController extends Controller
             'released_at' => now(),
         ]);
 
+        ActivityLog::create([
+            'user_id'       => Auth::id(),
+            'action'        => 'Radiology Report Released',
+            'module'        => 'Radiology',
+            'description'   => "Radiology report #{$radiologyReport->id} officially released to referring doctor.",
+            'loggable_type' => RadiologyReport::class,
+            'loggable_id'   => $radiologyReport->id,
+            'ip_address'    => request()->ip(),
+            'logged_at'     => now(),
+        ]);
+
         return back()->with('success', 'Radiology report officially released to referring doctor.');
+    }
+
+    /** Return a draft report for correction by radiology staff. */
+    public function returnForCorrection(Request $request, RadiologyReport $radiologyReport): RedirectResponse
+    {
+        $this->authorize('returnForCorrection', $radiologyReport);
+
+        $validated = $request->validate([
+            'correction_notes' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $notes = trim($validated['correction_notes']);
+        $rec = $radiologyReport->recommendations ? $radiologyReport->recommendations . "\n" : '';
+        $rec .= "[Returned for Correction on " . now()->format('Y-m-d H:i') . " by " . Auth::user()->name . "]: " . $notes;
+
+        $radiologyReport->update([
+            'recommendations' => $rec,
+        ]);
+
+        ActivityLog::create([
+            'user_id'       => Auth::id(),
+            'action'        => 'Radiology Report Returned for Correction',
+            'module'        => 'Radiology',
+            'severity'      => ActivityLog::SEVERITY_WARNING,
+            'description'   => "Radiology report #{$radiologyReport->id} returned for correction. Notes: {$notes}",
+            'loggable_type' => RadiologyReport::class,
+            'loggable_id'   => $radiologyReport->id,
+            'ip_address'    => request()->ip(),
+            'logged_at'     => now(),
+        ]);
+
+        return back()->with('success', 'Radiology report returned for correction.');
     }
 
     /** Print-friendly view for radiology report. */

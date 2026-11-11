@@ -21,7 +21,13 @@
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label fw-semibold">Diet Plan Details & Instructions <span class="text-danger">*</span></label>
+                    <label class="form-label fw-semibold">Nutrition Assessment &amp; Recommendations</label>
+                    <textarea name="assessment_notes" class="form-control @error('assessment_notes') is-invalid @enderror" rows="3" maxlength="2000" placeholder="Nutritional status, dietary history, risks, and recommended dietary modifications... (optional)">{{ old('assessment_notes', $dietPlan->assessment_notes) }}</textarea>
+                    @error('assessment_notes')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Diet Plan Details &amp; Instructions <span class="text-danger">*</span></label>
                     <textarea name="plan_details" class="form-control @error('plan_details') is-invalid @enderror" rows="5" placeholder="Enter specific breakfast, lunch, dinner guidelines, meal sizing, and prep instructions..." required>{{ old('plan_details', $dietPlan->plan_details) }}</textarea>
                     <small class="text-muted">Give comprehensive instructions matching the patient's therapeutic needs.</small>
                     @error('plan_details')<div class="invalid-feedback">{{ $message }}</div>@enderror

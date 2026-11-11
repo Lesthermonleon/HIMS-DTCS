@@ -2,8 +2,9 @@
 @section('title', 'New Diet Request')
 @section('page-title', 'New Diet & Nutrition Request')
 @section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{ route('diet.requests.index') }}">Requests</a></li>
-    <li class="breadcrumb-item active">New</li>
+    <li class="breadcrumb-item"><a href="{{ route('diet.dashboard') }}">DNMS</a></li>
+    <li class="breadcrumb-item"><a href="{{ route('diet.plans.index') }}">Diet Plans</a></li>
+    <li class="breadcrumb-item active">New Diet Request</li>
 @endsection
 @section('content')
 <form method="POST" action="{{ route('diet.requests.store') }}">
@@ -59,7 +60,7 @@
     </div>
     <div class="card-footer d-flex gap-2">
         <button type="submit" class="btn btn-primary"><i class="bi bi-send me-1"></i>Submit Request</button>
-        <a href="{{ route('diet.requests.index') }}" class="btn btn-outline-secondary">Cancel</a>
+        <a href="{{ route('diet.plans.index') }}" class="btn btn-outline-secondary">Cancel</a>
     </div>
 </div>
 </form>

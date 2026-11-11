@@ -5,6 +5,7 @@ namespace App\Models;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -24,6 +25,7 @@ class User extends Authenticatable
         'password',
         'employee_id',
         'department',
+        'patient_id',
         'phone',
         'avatar',
         'is_active',
@@ -72,6 +74,10 @@ class User extends Authenticatable
     public function prescriptionsAsDoctor(): HasMany       { return $this->hasMany(Prescription::class, 'doctor_id'); }
     public function surgeryRequestsAsDoctor(): HasMany     { return $this->hasMany(SurgeryRequest::class, 'doctor_id'); }
 
+    // Patient & Appointment relationships
+    public function patient(): BelongsTo             { return $this->belongsTo(Patient::class, 'patient_id'); }
+    public function appointmentsAsDoctor(): HasMany  { return $this->hasMany(Appointment::class, 'doctor_id'); }
+
     public function activityLogs(): HasMany          { return $this->hasMany(ActivityLog::class); }
     public function notifications(): HasMany         { return $this->hasMany(Notification::class); }
     public function conversations(): BelongsToMany   { return $this->belongsToMany(Conversation::class, 'conversation_participants')->withPivot('last_read_at')->withTimestamps(); }
@@ -105,6 +111,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Check if the user is a Super Administrator.
+     */
+    public function isSuperAdmin(): bool
+    {
+        return $this->hasRole('super_admin');
+    }
+
+    /**
      * Check if the user is a System Administrator.
      */
     public function isAdmin(): bool
@@ -121,7 +135,101 @@ class User extends Authenticatable
     }
 
     /**
+     * Check if the user is a Patient.
+     */
+    public function isPatient(): bool
+    {
+        return $this->hasRole('patient');
+    }
+
+    /**
+     * Check if this user account is a protected privileged account.
+     * Protected accounts (super_admin, admin) cannot be modified, unlocked,
+     * archived, or reset by ordinary admins or unprivileged users.
+     */
+    public function isProtectedPrivilegedAccount(): bool
+    {
+        return $this->hasAnyRole(['super_admin', 'admin']);
+    }
+
+    /**
+     * Count currently active, non-archived Super Administrator accounts.
+     */
+    public static function countActiveSuperAdmins(): int
+    {
+        return static::whereHas('roles', fn($q) => $q->where('slug', 'super_admin'))
+            ->whereNull('deleted_at')
+            ->where('is_active', true)
+            ->count();
+    }
+
+    /**
+     * Check and summarize all clinical and medical records associated with this account.
+     * Clinical records are subject to statutory medical retention rules and prevent permanent deletion.
+     */
+    public function getClinicalRecordsBreakdown(): array
+    {
+        $breakdown = [];
+
+        $labReq = LabRequest::where('doctor_id', $this->id)->count();
+        if ($labReq > 0) $breakdown['Lab Requests (as Clinician)'] = $labReq;
+
+        $labRes = LabResult::where('technologist_id', $this->id)
+            ->orWhere('validated_by', $this->id)
+            ->orWhere('released_by', $this->id)
+            ->count();
+        if ($labRes > 0) $breakdown['Lab Results (as Technologist/Validator)'] = $labRes;
+
+        $radReq = RadiologyRequest::where('doctor_id', $this->id)->count();
+        if ($radReq > 0) $breakdown['Radiology Requests (as Clinician)'] = $radReq;
+
+        $radRep = RadiologyReport::where('radiologist_id', $this->id)
+            ->orWhere('approved_by', $this->id)
+            ->orWhere('released_by', $this->id)
+            ->count();
+        if ($radRep > 0) $breakdown['Radiology Reports (as Radiologist/Approver)'] = $radRep;
+
+        $rx = Prescription::where('doctor_id', $this->id)
+            ->orWhere('verified_by', $this->id)
+            ->count();
+        if ($rx > 0) $breakdown['Prescriptions (as Clinician/Verifier)'] = $rx;
+
+        $dispense = DispensingRecord::where('pharmacist_id', $this->id)->count();
+        if ($dispense > 0) $breakdown['Dispensing Records (as Pharmacist)'] = $dispense;
+
+        $surgeryReq = SurgeryRequest::where('doctor_id', $this->id)->count();
+        if ($surgeryReq > 0) $breakdown['Surgery Requests (as Clinician)'] = $surgeryReq;
+
+        $surgicalTeam = SurgicalTeamMember::where('user_id', $this->id)->count();
+        if ($surgicalTeam > 0) $breakdown['Surgical Team Assignments'] = $surgicalTeam;
+
+        $dietReq = DietRequest::where('doctor_id', $this->id)->count();
+        if ($dietReq > 0) $breakdown['Diet Requests (as Clinician)'] = $dietReq;
+
+        $dietPlans = DietPlan::where('dietitian_id', $this->id)->count();
+        if ($dietPlans > 0) $breakdown['Diet Plans (as Dietitian)'] = $dietPlans;
+
+        $appointments = Appointment::where('doctor_id', $this->id)->count();
+        if ($appointments > 0) $breakdown['Outpatient Appointments (as Doctor)'] = $appointments;
+
+        $patientRecords = Patient::where('user_id', $this->id)->count();
+        if ($this->patient_id) $patientRecords++;
+        if ($patientRecords > 0) $breakdown['Patient Master Records'] = $patientRecords;
+
+        return $breakdown;
+    }
+
+    /**
+     * Determine if this user account has any linked clinical records.
+     */
+    public function hasLinkedClinicalRecords(): bool
+    {
+        return array_sum($this->getClinicalRecordsBreakdown()) > 0;
+    }
+
+    /**
      * Check if the user can access the full Patient Information module (Admin or Doctor).
+     * Super Admin explicitly does NOT inherit automatic clinical or patient access.
      */
     public function canAccessPatients(): bool
     {
@@ -129,19 +237,49 @@ class User extends Authenticatable
     }
 
     /**
-     * Get the first role slug for the user (convenience).
+     * Resolve the user's primary role model deterministically.
+     * Precedence: super_admin > admin > doctor > staff roles > patient.
      */
-    public function getPrimaryRoleAttribute(): ?string
+    public function primaryRoleModel(): ?Role
     {
-        return $this->roles()->first()?->slug;
+        $roles = $this->roles;
+        if ($roles->isEmpty()) {
+            return null;
+        }
+
+        if ($superAdmin = $roles->firstWhere('slug', 'super_admin')) {
+            return $superAdmin;
+        }
+        if ($admin = $roles->firstWhere('slug', 'admin')) {
+            return $admin;
+        }
+        if ($doctor = $roles->firstWhere('slug', 'doctor')) {
+            return $doctor;
+        }
+
+        // Professional staff roles take precedence over patient role if dual-assigned
+        $staffRole = $roles->first(fn($r) => $r->slug !== 'patient');
+        if ($staffRole) {
+            return $staffRole;
+        }
+
+        return $roles->first();
     }
 
     /**
-     * Get the first role name for display.
+     * Get the primary role slug for the user.
+     */
+    public function getPrimaryRoleAttribute(): ?string
+    {
+        return $this->primaryRoleModel()?->slug;
+    }
+
+    /**
+     * Get the primary role name for display.
      */
     public function getRoleNameAttribute(): string
     {
-        return $this->roles()->first()?->name ?? 'No Role';
+        return $this->primaryRoleModel()?->name ?? 'No Role';
     }
 
     // ──────────────────────── Login Security Helpers ────────────────────────

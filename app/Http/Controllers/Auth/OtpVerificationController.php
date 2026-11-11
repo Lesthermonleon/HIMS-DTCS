@@ -193,8 +193,8 @@ class OtpVerificationController extends Controller
 
         // Remember-email cookie handling was set at the password step — nothing to do here
 
-        // Resolve role dashboard and redirect (same logic as original)
-        $role           = $user->roles()->first();
+        // Resolve role dashboard and redirect (deterministic primary role resolution)
+        $role           = $user->primaryRoleModel();
         $dashboardRoute = $role?->dashboard_route;
 
         if ($dashboardRoute && Route::has($dashboardRoute)) {

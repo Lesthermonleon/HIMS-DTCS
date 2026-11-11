@@ -487,7 +487,7 @@
             font-family: var(--font-body);
             border: 1px solid var(--line);
         }
-        .alert-success  { background: rgba(20,199,154,0.12) !important; border-left: 4px solid #14C79A !important; color: var(--ink) !important; }
+        .alert-success  { background: rgba(20,199,154,0.12) !important; color: var(--ink) !important; }
         .alert-danger   { background: rgba(220,38,38,0.08) !important; border-left: 4px solid #dc2626 !important; color: var(--ink) !important; }
         .alert-warning  { background: rgba(234,179,8,0.1) !important; border-left: 4px solid #ca8a04 !important; color: var(--ink) !important; }
         .alert .alert-icon { align-self: flex-start; }

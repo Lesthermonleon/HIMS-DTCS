@@ -62,11 +62,13 @@
                     <td>
                         <div class="table-actions">
                             <a href="{{ route('diet.requests.show', $req) }}" class="table-action-btn action-view" title="View Request Details" aria-label="View Request Details"><i class="bi bi-eye"></i></a>
-                            @if($req->status === 'Pending' && auth()->user()->hasRole('doctor'))
+                            @can('update', $req)
                                 <a href="{{ route('diet.requests.edit', $req) }}" class="table-action-btn action-edit" title="Edit Request" aria-label="Edit Request"><i class="bi bi-pencil"></i></a>
-                            @endif
-                            @if($req->status === 'Pending' && auth()->user()->hasRole('dietitian') && !$req->dietPlan)
-                                <a href="{{ route('diet.plans.create', ['diet_request_id' => $req->id]) }}" class="table-action-btn action-success" title="Create Diet Plan" aria-label="Create Diet Plan"><i class="bi bi-file-earmark-plus"></i></a>
+                            @endcan
+                            @if($req->status === 'Pending' && !$req->dietPlan)
+                                @can('create', [\App\Models\DietPlan::class, $req])
+                                    <a href="{{ route('diet.plans.create', ['diet_request_id' => $req->id]) }}" class="table-action-btn action-success" title="Create Diet Plan" aria-label="Create Diet Plan"><i class="bi bi-file-earmark-plus"></i></a>
+                                @endcan
                             @endif
                         </div>
                     </td>

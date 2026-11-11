@@ -119,18 +119,19 @@
                         <div class="medication-list" id="medicationListGroup">
                             @forelse($selectedPrescription->items as $item)
                                 @php
-                                    $isPending = ($item->status === 'Pending');
+                                    $isPending = ($item->status === 'Pending' && $item->remaining_quantity > 0);
                                     $dispensingRec = $item->dispensingRecords->first();
                                     $stockData = $stockDataMap[$item->id] ?? null;
                                     $availableQty = $stockData ? $stockData->availableQuantity : 0;
+                                    $remainingQty = $item->remaining_quantity;
                                     $lotNumber = old("items.{$item->id}.lot_number", $stockData ? $stockData->lotNumber : '');
                                     $expiryDate = old("items.{$item->id}.expiry_date", $stockData ? $stockData->expiryDate : '');
-                                    $hasStock = $stockData && $stockData->hasSufficientStock($item->quantity);
+                                    $hasStock = $stockData && $stockData->hasSufficientStock($remainingQty);
                                 @endphp
                                 <div class="medication-item py-3 {{ ! $loop->last ? 'border-bottom' : '' }} {{ $isPending ? 'item-card-pending' : 'opacity-75' }}"
                                      data-item-id="{{ $item->id }}"
                                      data-item-name="{{ $item->medication_name }}"
-                                     data-item-qty="{{ $item->quantity }}">
+                                     data-item-qty="{{ $remainingQty }}">
                                     
                                     {{-- Item Header & Details --}}
                                     <div class="d-flex justify-content-between align-items-start mb-2">
@@ -139,6 +140,11 @@
                                             <div class="small text-muted">
                                                 {{ $item->dosage }} &bull; {{ $item->route ?? 'Oral' }} &bull; {{ $item->frequency }} &bull; {{ $item->duration }}
                                                 <span class="ms-2 text-dark fw-semibold">&bull; Prescribed: {{ $item->quantity }} {{ Str::plural('unit', $item->quantity) }}</span>
+                                                @if($item->dispensed_quantity > 0)
+                                                    <span class="badge bg-info-subtle text-info border border-info-subtle ms-1">
+                                                        Already Dispensed: {{ $item->dispensed_quantity }} &bull; Remaining: {{ $remainingQty }}
+                                                    </span>
+                                                @endif
                                                 @if($isPending && $stockData)
                                                     <span class="badge bg-{{ $hasStock ? 'success-subtle text-success border border-success' : 'danger-subtle text-danger border border-danger' }} ms-2">
                                                         Available: {{ $availableQty }} {{ Str::plural('unit', $availableQty) }}
@@ -160,19 +166,31 @@
                                     @if($isPending)
                                         <div class="mt-3 pt-2 border-top">
                                             {{-- Hidden form inputs to preserve submission payload --}}
+                                            <input type="hidden" name="items[{{ $item->id }}][id]" value="{{ $item->id }}">
                                             <input type="hidden" name="items[{{ $item->id }}][lot_number]" id="lot_number_{{ $item->id }}" class="item-lot-input" value="{{ $lotNumber }}">
                                             <input type="hidden" name="items[{{ $item->id }}][expiry_date]" id="expiry_date_{{ $item->id }}" class="item-expiry-input" value="{{ $expiryDate }}">
 
                                             <div class="small fw-semibold text-muted mb-2 d-flex align-items-center justify-content-between">
                                                 <div>
-                                                    <i class="bi bi-box-seam me-1 text-primary"></i>Inventory Batch Information
+                                                    <i class="bi bi-box-seam me-1 text-primary"></i>Inventory Batch &amp; Quantity to Dispense
                                                 </div>
                                                 <div class="text-muted extra-small" style="font-size: 0.75rem;">
                                                     <i class="bi bi-building-check me-1"></i>Stock Integration
                                                 </div>
                                             </div>
-                                            <div class="row g-3">
-                                                <div class="col-md-6">
+                                            <div class="row g-3 align-items-center">
+                                                <div class="col-md-4">
+                                                    <div class="small text-muted mb-1">
+                                                        Quantity to Dispense (Max: {{ $remainingQty }})
+                                                    </div>
+                                                    <input type="number"
+                                                           name="items[{{ $item->id }}][quantity_dispensed]"
+                                                           class="form-control form-control-sm item-qty-input"
+                                                           min="1"
+                                                           max="{{ $remainingQty }}"
+                                                           value="{{ old("items.{$item->id}.quantity_dispensed", $remainingQty) }}">
+                                                </div>
+                                                <div class="col-md-4">
                                                     <div class="small text-muted mb-1">
                                                         Lot / Batch Number
                                                     </div>
@@ -184,7 +202,7 @@
                                                     @enderror
                                                 </div>
 
-                                                <div class="col-md-6">
+                                                <div class="col-md-4">
                                                     <div class="small text-muted mb-1">
                                                         Medication Expiry Date
                                                     </div>

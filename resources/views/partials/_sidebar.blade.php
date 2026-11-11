@@ -8,13 +8,60 @@
     $radActive      = request()->routeIs('radiology.*');
     $pmsActive      = request()->routeIs('pharmacy.*');
     $sorActive      = request()->routeIs('surgery.*');
-    $dnmActive      = request()->routeIs('diet.*');
-    $reportsActive  = request()->routeIs('reports.*');
+    $dnmActive      = request()->routeIs('diet.*') || request()->routeIs('reports.diet.*');
+    $reportsActive  = request()->routeIs('reports.*') && !request()->routeIs('reports.diet.*') && !request()->routeIs('reports.surgery.*');
     $adminActive    = request()->routeIs('admin.*');
 @endphp
 
 
-@if($role === 'admin')
+@if($role === 'super_admin')
+{{-- ────────────────────────────────────────────────────────────
+     SUPER ADMIN: Master System Authority & Governance
+──────────────────────────────────────────────────────────── --}}
+<div class="sb-nav-label" style="margin-top:.5rem;">MAIN</div>
+<a href="{{ route('super-admin.dashboard') }}" class="nav-link {{ request()->routeIs('super-admin.dashboard') ? 'active' : '' }}">
+    <i class="bi bi-speedometer2 text-primary"></i> Dashboard
+</a>
+
+<div class="sb-nav-label" style="margin-top:.5rem;">ACCESS & GOVERNANCE</div>
+<a href="{{ route('super-admin.users.index') }}" class="nav-link {{ request()->routeIs('super-admin.users.*') || request()->routeIs('admin.users.*') || request()->routeIs('super-admin.admins.*') ? 'active' : '' }}">
+    <i class="bi bi-people"></i> User Management
+</a>
+<a href="{{ route('admin.roles.index') }}" class="nav-link {{ request()->routeIs('admin.roles.*') ? 'active' : '' }}">
+    <i class="bi bi-shield-lock"></i> Roles & Permissions
+</a>
+
+<div class="sb-nav-label" style="margin-top:.5rem;">DEPARTMENTS & SERVICES</div>
+<a href="{{ route('super-admin.departments.index') }}" class="nav-link {{ request()->routeIs('super-admin.departments.*') ? 'active' : '' }}">
+    <i class="bi bi-diagram-3"></i> Department Management
+</a>
+<a href="{{ route('super-admin.services.diagnostic') }}" class="nav-link {{ request()->routeIs('super-admin.services.diagnostic*') ? 'active' : '' }}">
+    <i class="bi bi-clipboard2-pulse"></i> Diagnostic Services Configuration
+</a>
+
+<div class="sb-nav-label" style="margin-top:.5rem;">MONITORING & REPORTS</div>
+<a href="{{ route('reports.index') }}" class="nav-link {{ $reportsActive ? 'active' : '' }}">
+    <i class="bi bi-bar-chart-line"></i> Reports & Analytics
+</a>
+<a href="{{ route('reports.surgery.activity') }}" class="nav-link {{ request()->routeIs('reports.surgery.*') ? 'active' : '' }}">
+    <i class="bi bi-file-earmark-bar-graph"></i> Surgery Reports
+</a>
+<a href="{{ route('super-admin.audit-vault.index') }}" class="nav-link {{ request()->routeIs('super-admin.audit-vault.*') ? 'active' : '' }}">
+    <i class="bi bi-journal-check"></i> Audit Logs
+</a>
+
+<div class="sb-nav-label" style="margin-top:.5rem;">SYSTEM & SECURITY</div>
+<a href="{{ route('super-admin.settings.index') }}" class="nav-link {{ request()->routeIs('super-admin.settings.*') ? 'active' : '' }}">
+    <i class="bi bi-shield-check"></i> Security Settings
+</a>
+<a href="{{ route('super-admin.backup.index') }}" class="nav-link {{ request()->routeIs('super-admin.backup.*') ? 'active' : '' }}">
+    <i class="bi bi-database-down"></i> Backup & Recovery
+</a>
+<a href="{{ route('admin.hospital-settings.index') }}" class="nav-link {{ request()->routeIs('admin.hospital-settings.*') ? 'active' : '' }}">
+    <i class="bi bi-gear"></i> System Settings
+</a>
+
+@elseif($role === 'admin')
 {{-- ──────────────────────────────
      ADMIN: collapsible dropdowns
 ────────────────────────────── --}}
@@ -24,7 +71,7 @@
     <i class="bi bi-speedometer2"></i> Dashboard
 </a>
 
-<div class="sb-nav-label" style="margin-top:.5rem;">CLINICAL</div>
+<div class="sb-nav-label" style="margin-top:.5rem;">DTCS CLINICAL MODULES</div>
 
 {{-- ── Laboratory (LIS) ── --}}
 <button class="nav-link sb-group-toggle {{ $labActive ? 'active' : '' }}"
@@ -95,7 +142,6 @@
     </div>
 </div>
 
-
 {{-- ── Surgery (SORS) ── --}}
 <button class="nav-link sb-group-toggle {{ $sorActive ? 'active' : '' }}"
         data-bs-toggle="collapse" data-bs-target="#grp-sor"
@@ -134,63 +180,74 @@
         <a href="{{ route('diet.dashboard') }}" class="nav-link sb-sub {{ request()->routeIs('diet.dashboard') ? 'active' : '' }}">
             <i class="bi bi-grid-1x2"></i> Overview
         </a>
-        <a href="{{ route('diet.requests.index') }}" class="nav-link sb-sub {{ request()->routeIs('diet.requests.*') ? 'active' : '' }}">
-            <i class="bi bi-journal-bookmark"></i> Diet Requests
-        </a>
-        <a href="{{ route('diet.plans.index') }}" class="nav-link sb-sub {{ request()->routeIs('diet.plans.*') ? 'active' : '' }}">
+        <a href="{{ route('diet.plans.index') }}" class="nav-link sb-sub {{ request()->routeIs('diet.plans.*') || request()->routeIs('diet.requests.*') ? 'active' : '' }}">
             <i class="bi bi-clipboard2-heart"></i> Diet Plans
+        </a>
+        <a href="{{ route('reports.diet.activity') }}" class="nav-link sb-sub {{ request()->routeIs('reports.diet.*') ? 'active' : '' }}">
+            <i class="bi bi-file-earmark-bar-graph"></i> Nutrition Reports
         </a>
     </div>
 </div>
 
 {{-- ── Patients ── --}}
-<div class="sb-nav-label" style="margin-top:.5rem;">Patients</div>
+<div class="sb-nav-label" style="margin-top:.5rem;">PATIENTS</div>
 <a href="{{ route('patients.index') }}" class="nav-link {{ $patientsActive ? 'active' : '' }}">
     <i class="bi bi-people"></i> Patient Directory
 </a>
 
-{{-- ── Reports & Analytics ── --}}
-<div class="sb-nav-label" style="margin-top:.5rem;">Reports & Analytics</div>
-<button class="nav-link sb-group-toggle {{ $reportsActive ? 'active' : '' }}"
-        data-bs-toggle="collapse" data-bs-target="#grp-reports"
-        aria-expanded="{{ $reportsActive ? 'true' : 'false' }}" aria-controls="grp-reports">
-    <i class="bi bi-file-earmark-bar-graph"></i>
-    <span class="sb-group-label">Reports <span class="sb-badge">MODULE</span></span>
-    <i class="bi bi-chevron-down sb-chevron"></i>
-</button>
-<div class="collapse {{ $reportsActive ? 'show' : '' }}" id="grp-reports">
-    <div class="sb-group-body">
-        <a href="{{ route('reports.index') }}" class="nav-link sb-sub {{ request()->routeIs('reports.index') ? 'active' : '' }}">
-            <i class="bi bi-grid"></i> Report Hub
-        </a>
-        <a href="{{ route('reports.laboratory.activity') }}" class="nav-link sb-sub {{ request()->routeIs('reports.laboratory.*') ? 'active' : '' }}">
-            <i class="bi bi-clipboard2-pulse"></i> Laboratory
-        </a>
-        <a href="{{ route('reports.radiology.activity') }}" class="nav-link sb-sub {{ request()->routeIs('reports.radiology.*') ? 'active' : '' }}">
-            <i class="bi bi-activity"></i> Radiology
-        </a>
-        <a href="{{ route('reports.pharmacy.activity') }}" class="nav-link sb-sub {{ request()->routeIs('reports.pharmacy.*') ? 'active' : '' }}">
-            <i class="bi bi-capsule"></i> Pharmacy
-        </a>
-        <a href="{{ route('reports.surgery.activity') }}" class="nav-link sb-sub {{ request()->routeIs('reports.surgery.*') ? 'active' : '' }}">
-            <i class="bi bi-heart-pulse"></i> Surgery
-        </a>
-        <a href="{{ route('reports.diet.activity') }}" class="nav-link sb-sub {{ request()->routeIs('reports.diet.*') ? 'active' : '' }}">
-            <i class="bi bi-apple"></i> Diet & Nutrition
-        </a>
-        <a href="{{ route('reports.clinical.services-summary') }}" class="nav-link sb-sub {{ request()->routeIs('reports.clinical.*') ? 'active' : '' }}">
-            <i class="bi bi-pie-chart"></i> Clinical Summary
-        </a>
-    </div>
-</div>
-
-{{-- ── Administration ── --}}
-<div class="sb-nav-label" style="margin-top:.5rem;">ADMINISTRATION</div>
-<a href="{{ route('admin.users.index') }}" class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}"><i class="bi bi-person-badge"></i> Users</a>
-<a href="{{ route('admin.audit-logs.index') }}" class="nav-link {{ request()->routeIs('admin.audit-logs.*') ? 'active' : '' }}"><i class="bi bi-journal-text"></i> System Audit Logs</a>
+{{-- ── Monitoring & Reports ── --}}
+<div class="sb-nav-label" style="margin-top:.5rem;">MONITORING & REPORTS</div>
+<a href="{{ route('admin.operations.index') }}" class="nav-link {{ request()->routeIs('admin.operations.*') ? 'active' : '' }}">
+    <i class="bi bi-activity"></i> Operations Monitor
+</a>
+<a href="{{ route('reports.index') }}" class="nav-link {{ $reportsActive ? 'active' : '' }}">
+    <i class="bi bi-bar-chart-line"></i> Reports & Analytics
+</a>
+<a href="{{ route('reports.surgery.activity') }}" class="nav-link {{ request()->routeIs('reports.surgery.*') ? 'active' : '' }}">
+    <i class="bi bi-file-earmark-bar-graph"></i> Surgery Reports
+</a>
+<a href="{{ route('admin.users.index') }}" class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
+    <i class="bi bi-people"></i> User Accounts
+</a>
+<a href="{{ route('admin.audit-logs.index') }}" class="nav-link {{ request()->routeIs('admin.audit-logs.*') ? 'active' : '' }}">
+    <i class="bi bi-journal-text"></i> System Audit Logs
+</a>
 
 
 
+
+@elseif($role === 'patient')
+{{-- ──────────────────────────────
+     PATIENT: Personal Healthcare Portal
+────────────────────────────── --}}
+<div class="sb-nav-label" style="margin-top:.5rem;">MY HEALTH PORTAL</div>
+<a href="{{ route('patient.dashboard') }}" class="nav-link {{ request()->routeIs('patient.dashboard') ? 'active' : '' }}">
+    <i class="bi bi-speedometer2 text-success"></i> My Dashboard
+</a>
+<a href="{{ route('patient.profile') }}" class="nav-link {{ request()->routeIs('patient.profile') ? 'active' : '' }}">
+    <i class="bi bi-person-gear"></i> My Profile
+</a>
+<a href="{{ route('patient.appointments') }}" class="nav-link {{ request()->routeIs('patient.appointments*') ? 'active' : '' }}">
+    <i class="bi bi-calendar-check"></i> My Appointments
+</a>
+<a href="{{ route('patient.results') }}" class="nav-link {{ request()->routeIs('patient.results') ? 'active' : '' }}">
+    <i class="bi bi-file-earmark-medical text-success"></i> Diagnostic Results
+</a>
+<a href="{{ route('patient.prescriptions') }}" class="nav-link {{ request()->routeIs('patient.prescriptions') ? 'active' : '' }}">
+    <i class="bi bi-capsule text-warning"></i> My Prescriptions
+</a>
+<a href="{{ route('patient.treatments') }}" class="nav-link {{ request()->routeIs('patient.treatments') ? 'active' : '' }}">
+    <i class="bi bi-heart-pulse text-danger"></i> Treatment Plans
+</a>
+<a href="{{ route('patient.billing') }}" class="nav-link {{ request()->routeIs('patient.billing') ? 'active' : '' }}">
+    <i class="bi bi-receipt text-primary"></i> Bills & Receipts
+</a>
+<a href="{{ route('notifications.index') }}" class="nav-link {{ request()->routeIs('notifications.*') ? 'active' : '' }}">
+    <i class="bi bi-bell"></i> Notifications
+</a>
+<a href="{{ route('patient.help') }}" class="nav-link {{ request()->routeIs('patient.help') ? 'active' : '' }}">
+    <i class="bi bi-question-circle"></i> Help & Support
+</a>
 
 @else
 {{-- ──────────────────────────────
@@ -200,9 +257,10 @@
 @if($role === 'doctor')
 <div class="sb-nav-label" style="margin-top:.5rem;">MAIN</div>
 <a href="{{ route('doctor.dashboard') }}" class="nav-link {{ request()->routeIs('doctor.dashboard') ? 'active' : '' }}"><i class="bi bi-speedometer2"></i> Dashboard</a>
+<a href="{{ route('admin.appointments.index') }}" class="nav-link {{ request()->routeIs('admin.appointments.*') ? 'active' : '' }}"><i class="bi bi-calendar3"></i> Appointments</a>
 <a href="{{ route('medisense.index') }}" class="nav-link {{ request()->routeIs('medisense.*') ? 'active' : '' }}"><i class="bi bi-cpu-fill text-success"></i> MediSense AI <span class="sb-badge">AI</span></a>
 
-<div class="sb-nav-label" style="margin-top:.5rem;">CLINICAL</div>
+<div class="sb-nav-label" style="margin-top:.5rem;">DIAGNOSTIC SERVICES</div>
 
 {{-- ── Laboratory (LIS) ── --}}
 <button class="nav-link sb-group-toggle {{ $labActive ? 'active' : '' }}"
@@ -247,6 +305,8 @@
         </a>
     </div>
 </div>
+
+<div class="sb-nav-label" style="margin-top:.5rem;">CLINICAL MODULES</div>
 
 {{-- ── Pharmacy (PMS) ── --}}
 <button class="nav-link sb-group-toggle {{ $pmsActive ? 'active' : '' }}"
@@ -309,27 +369,61 @@
         <a href="{{ route('diet.dashboard') }}" class="nav-link sb-sub {{ request()->routeIs('diet.dashboard') ? 'active' : '' }}">
             <i class="bi bi-grid-1x2"></i> Overview
         </a>
-        <a href="{{ route('diet.requests.index') }}" class="nav-link sb-sub {{ request()->routeIs('diet.requests.*') ? 'active' : '' }}">
-            <i class="bi bi-journal-bookmark"></i> Diet Requests
-        </a>
-        <a href="{{ route('diet.plans.index') }}" class="nav-link sb-sub {{ request()->routeIs('diet.plans.*') ? 'active' : '' }}">
+        <a href="{{ route('diet.plans.index') }}" class="nav-link sb-sub {{ request()->routeIs('diet.plans.*') || request()->routeIs('diet.requests.*') ? 'active' : '' }}">
             <i class="bi bi-clipboard2-heart"></i> Diet Plans
+        </a>
+        <a href="{{ route('reports.diet.activity') }}" class="nav-link sb-sub {{ request()->routeIs('reports.diet.*') ? 'active' : '' }}">
+            <i class="bi bi-file-earmark-bar-graph"></i> Nutrition Reports
         </a>
     </div>
 </div>
 
 {{-- ── Patients ── --}}
-<div class="sb-nav-label" style="margin-top:.5rem;">Patients</div>
+<div class="sb-nav-label" style="margin-top:.5rem;">PATIENTS</div>
 <a href="{{ route('patients.index') }}" class="nav-link {{ $patientsActive ? 'active' : '' }}">
     <i class="bi bi-people"></i> Patient Directory
 </a>
 
 {{-- ── Doctor Reports Entry Point ── --}}
 <div class="sb-nav-label" style="margin-top:.5rem;">REPORTS</div>
-<a href="{{ route('reports.index') }}" class="nav-link {{ $reportsActive ? 'active' : '' }}">
+<a href="{{ route('reports.index') }}" class="nav-link {{ request()->routeIs('reports.*') && !request()->routeIs('reports.diet.*') ? 'active' : '' }}">
     <i class="bi bi-file-earmark-bar-graph"></i> Clinical Reports
 </a>
 
+
+@elseif($role === 'pharmacist')
+{{-- ── Pharmacist Role: Complete PMS & POS Navigation ── --}}
+<div class="sb-nav-label" style="margin-top:.5rem;">MAIN</div>
+<a href="{{ route('pharmacy.dashboard') }}" class="nav-link {{ request()->routeIs('pharmacy.dashboard') ? 'active' : '' }}">
+    <i class="bi bi-speedometer2"></i> Pharmacy Dashboard
+</a>
+
+<div class="sb-nav-label" style="margin-top:.5rem;">PHARMACY OPERATIONS</div>
+<a href="{{ route('pharmacy.prescriptions.index') }}" class="nav-link {{ request()->routeIs('pharmacy.prescriptions.*') || request()->routeIs('pharmacy.dispensing.*') ? 'active' : '' }}">
+    <i class="bi bi-prescription2"></i> Prescription Management
+</a>
+<a href="{{ route('pharmacy.pos.index') }}" class="nav-link {{ request()->routeIs('pharmacy.pos.*') ? 'active' : '' }}">
+    <i class="bi bi-calculator"></i> Point of Sale
+</a>
+
+<div class="sb-nav-label" style="margin-top:.5rem;">INVENTORY</div>
+<a href="{{ route('pharmacy.inventory.items') }}" class="nav-link {{ request()->routeIs('pharmacy.inventory.items') || request()->routeIs('pharmacy.medicines.*') ? 'active' : '' }}">
+    <i class="bi bi-boxes"></i> Inventory Items
+</a>
+<a href="{{ route('pharmacy.inventory.purchase-orders') }}" class="nav-link {{ request()->routeIs('pharmacy.inventory.purchase-orders') ? 'active' : '' }}">
+    <i class="bi bi-truck"></i> Purchase Orders
+</a>
+<a href="{{ route('pharmacy.inventory.counts') }}" class="nav-link {{ request()->routeIs('pharmacy.inventory.counts') ? 'active' : '' }}">
+    <i class="bi bi-clipboard2-check"></i> Inventory Counts
+</a>
+<a href="{{ route('pharmacy.inventory.adjustments') }}" class="nav-link {{ request()->routeIs('pharmacy.inventory.adjustments') ? 'active' : '' }}">
+    <i class="bi bi-sliders"></i> Stock Adjustments
+</a>
+
+<div class="sb-nav-label" style="margin-top:.5rem;">REPORTS</div>
+<a href="{{ route('reports.pharmacy.activity') }}" class="nav-link {{ request()->routeIs('reports.pharmacy.*') ? 'active' : '' }}">
+    <i class="bi bi-file-earmark-bar-graph"></i> Pharmacy Reports
+</a>
 
 @else
 {{-- ── Single-Department Clinical Roles: Flat Direct Navigation ── --}}
@@ -338,79 +432,77 @@
     <i class="bi bi-speedometer2"></i> Dashboard
 </a>
 
-<div class="sb-nav-label" style="margin-top:.5rem;">CLINICAL</div>
+@if(in_array($role, ['med-tech', 'rad-tech', 'radiologist']))
+<div class="sb-nav-label" style="margin-top:.5rem;">DIAGNOSTIC SERVICES</div>
 
 @if($role === 'med-tech')
-<a href="{{ route('lab.requests.index') }}" class="nav-link {{ request()->routeIs('lab.requests.*') ? 'active' : '' }}">
-    <i class="bi bi-list-task"></i> Lab Requests
-</a>
-<a href="{{ route('lab.results.index') }}" class="nav-link {{ request()->routeIs('lab.results.*') ? 'active' : '' }}">
-    <i class="bi bi-journal-medical"></i> Lab Results
-</a>
-<a href="{{ route('reports.laboratory.activity') }}" class="nav-link {{ request()->routeIs('reports.laboratory.*') ? 'active' : '' }}">
-    <i class="bi bi-file-earmark-bar-graph"></i> Laboratory Reports
-</a>
+{{-- ── Laboratory (LIS) ── --}}
+<button class="nav-link sb-group-toggle {{ $labActive ? 'active' : '' }}"
+        data-bs-toggle="collapse" data-bs-target="#grp-lab-staff"
+        aria-expanded="{{ $labActive ? 'true' : 'false' }}" aria-controls="grp-lab-staff">
+    <i class="bi bi-clipboard2-pulse"></i>
+    <span class="sb-group-label">Laboratory <span class="sb-badge">LIS</span></span>
+    <i class="bi bi-chevron-down sb-chevron"></i>
+</button>
+<div class="collapse {{ $labActive ? 'show' : '' }}" id="grp-lab-staff">
+    <div class="sb-group-body">
+        <a href="{{ route('lab.requests.index') }}" class="nav-link sb-sub {{ request()->routeIs('lab.requests.*') ? 'active' : '' }}">
+            <i class="bi bi-list-task"></i> Lab Requests
+        </a>
+        <a href="{{ route('lab.results.index') }}" class="nav-link sb-sub {{ request()->routeIs('lab.results.*') ? 'active' : '' }}">
+            <i class="bi bi-journal-medical"></i> Lab Results
+        </a>
+        <a href="{{ route('reports.laboratory.activity') }}" class="nav-link sb-sub {{ request()->routeIs('reports.laboratory.*') ? 'active' : '' }}">
+            <i class="bi bi-file-earmark-bar-graph"></i> Laboratory Reports
+        </a>
+    </div>
+</div>
 @endif
 
 @if(in_array($role, ['rad-tech', 'radiologist']))
-<a href="{{ route('radiology.requests.index') }}" class="nav-link {{ request()->routeIs('radiology.requests.*') ? 'active' : '' }}">
-    <i class="bi bi-image"></i> Imaging Requests
-</a>
-@if($role === 'radiologist')
-<a href="{{ route('radiology.reports.index') }}" class="nav-link {{ request()->routeIs('radiology.reports.*') ? 'active' : '' }}">
-    <i class="bi bi-file-text"></i> Reports
-</a>
-@endif
-<a href="{{ route('reports.radiology.activity') }}" class="nav-link {{ request()->routeIs('reports.radiology.*') ? 'active' : '' }}">
-    <i class="bi bi-file-earmark-bar-graph"></i> Radiology Reports
-</a>
-@endif
-
-@if($role === 'pharmacist')
-<a href="{{ route('pharmacy.prescriptions.index') }}" class="nav-link {{ request()->routeIs('pharmacy.prescriptions.*') ? 'active' : '' }}">
-    <i class="bi bi-prescription2"></i> Prescriptions
-</a>
-<a href="{{ route('pharmacy.dispensing.index') }}" class="nav-link {{ request()->routeIs('pharmacy.dispensing.*') ? 'active' : '' }}">
-    <i class="bi bi-bag-plus"></i> Dispensing
-</a>
-<a href="{{ route('pharmacy.medicines.index') }}" class="nav-link {{ request()->routeIs('pharmacy.medicines.*') ? 'active' : '' }}">
-    <i class="bi bi-box-seam"></i> Medicine Availability
-</a>
-<a href="{{ route('reports.pharmacy.activity') }}" class="nav-link {{ request()->routeIs('reports.pharmacy.*') ? 'active' : '' }}">
-    <i class="bi bi-file-earmark-bar-graph"></i> Pharmacy Reports
-</a>
+{{-- ── Radiology (RIS) ── --}}
+<button class="nav-link sb-group-toggle {{ $radActive ? 'active' : '' }}"
+        data-bs-toggle="collapse" data-bs-target="#grp-rad-staff"
+        aria-expanded="{{ $radActive ? 'true' : 'false' }}" aria-controls="grp-rad-staff">
+    <i class="bi bi-activity"></i>
+    <span class="sb-group-label">Radiology <span class="sb-badge">RIS</span></span>
+    <i class="bi bi-chevron-down sb-chevron"></i>
+</button>
+<div class="collapse {{ $radActive ? 'show' : '' }}" id="grp-rad-staff">
+    <div class="sb-group-body">
+        <a href="{{ route('radiology.requests.index') }}" class="nav-link sb-sub {{ request()->routeIs('radiology.requests.*') ? 'active' : '' }}">
+            <i class="bi bi-image"></i> Imaging Requests
+        </a>
+        <a href="{{ route('radiology.reports.index') }}" class="nav-link sb-sub {{ request()->routeIs('radiology.reports.*') ? 'active' : '' }}">
+            <i class="bi bi-file-text"></i> Reports
+        </a>
+        <a href="{{ route('reports.radiology.activity') }}" class="nav-link sb-sub {{ request()->routeIs('reports.radiology.*') ? 'active' : '' }}">
+            <i class="bi bi-file-earmark-bar-graph"></i> Radiology Reports
+        </a>
+    </div>
+</div>
 @endif
 
-
+@elseif(in_array($role, ['or-coordinator', 'or-staff']))
+<div class="sb-nav-label" style="margin-top:.5rem;">SURGERY & OPERATING ROOM (SORS)</div>
 @if($role === 'or-coordinator')
 <a href="{{ route('surgery.requests.index') }}" class="nav-link {{ request()->routeIs('surgery.requests.*') ? 'active' : '' }}">
     <i class="bi bi-scissors"></i> Surgery Requests
 </a>
+@endif
 <a href="{{ route('surgery.schedules.index') }}" class="nav-link {{ request()->routeIs('surgery.schedules.*') ? 'active' : '' }}">
     <i class="bi bi-calendar3"></i> OR Schedules
 </a>
 <a href="{{ route('surgery.calendar') }}" class="nav-link {{ request()->routeIs('surgery.calendar') ? 'active' : '' }}">
     <i class="bi bi-calendar-week"></i> Surgery Calendar
 </a>
+@if($role === 'or-coordinator')
+<div class="sb-nav-label" style="margin-top:.5rem;">REPORTS</div>
 <a href="{{ route('reports.surgery.activity') }}" class="nav-link {{ request()->routeIs('reports.surgery.*') ? 'active' : '' }}">
     <i class="bi bi-file-earmark-bar-graph"></i> Surgery Reports
 </a>
 @endif
-
-@if($role === 'dietitian')
-<a href="{{ route('diet.requests.index') }}" class="nav-link {{ request()->routeIs('diet.requests.*') ? 'active' : '' }}">
-    <i class="bi bi-journal-bookmark"></i> Diet Requests
-</a>
-<a href="{{ route('diet.plans.index') }}" class="nav-link {{ request()->routeIs('diet.plans.*') ? 'active' : '' }}">
-    <i class="bi bi-clipboard2-heart"></i> Diet Plans
-</a>
-<a href="{{ route('reports.diet.activity') }}" class="nav-link {{ request()->routeIs('reports.diet.*') ? 'active' : '' }}">
-    <i class="bi bi-file-earmark-bar-graph"></i> Nutrition Reports
-</a>
 @endif
-
-
-
 
 @endif
 @endif
